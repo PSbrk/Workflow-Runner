@@ -1141,10 +1141,15 @@ input.input-error, textarea.input-error {
   fill: white;
   stroke: #6b7280;
   stroke-width: 2;
-  pointer-events: none;
+  cursor: grab;
+}
+.canvas-svg .edge-endpoint:hover {
+  stroke: var(--active);
+  stroke-width: 2.5;
 }
 .canvas-svg .edge-group.selected .edge-endpoint,
 .canvas-svg .edge-group:hover .edge-endpoint { stroke: var(--active); }
+.canvas-svg.dragging-endpoint .edge-endpoint { cursor: grabbing; }
 
 .canvas-svg .edge-temp {
   fill: none;

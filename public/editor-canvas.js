@@ -369,6 +369,29 @@
       return;
     }
 
+    // Handle: drag an edge's endpoint dot to reroute the connection.
+    if (target.classList && target.classList.contains('edge-endpoint')) {
+      e.preventDefault();
+      e.stopPropagation();
+      const edgeGroup = target.closest('.edge-group');
+      if (!edgeGroup) return;
+      const sourceId = edgeGroup.getAttribute('data-source-id');
+      const edgeIdx = parseInt(edgeGroup.getAttribute('data-edge-idx'), 10);
+      const pt = svgPoint(e);
+      cv.drag = {
+        kind: 'reconnect',
+        sourceId,
+        edgeIdx,
+        currentX: pt.x,
+        currentY: pt.y,
+      };
+      cv.selectedEdge = { sourceId, edgeIdx };
+      cv.selectedNode = null;
+      cv.svg.classList.add('dragging-endpoint');
+      render();
+      return;
+    }
+
     // Edge click — select it.
     const edgeGroup = target.closest && target.closest('.edge-group');
     if (edgeGroup) {
@@ -461,6 +484,10 @@
       cv.drag.currentX = pt.x;
       cv.drag.currentY = pt.y;
       renderTempEdge();
+    } else if (cv.drag.kind === 'reconnect') {
+      cv.drag.currentX = pt.x;
+      cv.drag.currentY = pt.y;
+      renderTempEdge();
     }
   }
 
@@ -480,6 +507,27 @@
           createConnection(sourceId, targetId);
         }
       }
+    } else if (cv.drag.kind === 'reconnect') {
+      // Drag-rewire an existing edge: the endpoint dot was dragged to a new
+      // target shape. If dropped on empty space, the original edge is kept.
+      const target = e.target;
+      const nodeGroup = target.closest && target.closest('.node-group');
+      const endGroup  = target.closest && target.closest('.end-node-group');
+      let newTarget = null;
+      if (endGroup) newTarget = 'end';
+      else if (nodeGroup) newTarget = nodeGroup.getAttribute('data-step-id');
+      if (newTarget) {
+        const source = stepById(cv.drag.sourceId);
+        if (source) {
+          if (source.type === 'decision' && Array.isArray(source.options) && source.options[cv.drag.edgeIdx]) {
+            source.options[cv.drag.edgeIdx].goto = newTarget;
+          } else if (source.type !== 'decision') {
+            source.next = newTarget;
+          }
+          cv.onChange();
+        }
+      }
+      cv.svg.classList.remove('dragging-endpoint');
     }
     // Candidate drags that never crossed the threshold leave the shape in
     // place — no need to re-render (selection is already shown).
@@ -513,6 +561,7 @@
       cv.selectedNode = null;
       cv.selectedEdge = null;
       cv.drag = null;
+      if (cv.svg) cv.svg.classList.remove('dragging-endpoint');
       render();
     }
   }
@@ -1024,6 +1073,12 @@
         ? (Array.isArray(step.options) ? step.options : [])
         : (step.next !== undefined ? [{ goto: step.next, label: null }] : []);
       targets.forEach((tgt, idx) => {
+        // While the user is dragging this very edge's endpoint, hide it —
+        // the temp edge follows the cursor instead.
+        if (cv.drag && cv.drag.kind === 'reconnect' &&
+            cv.drag.sourceId === step.id && cv.drag.edgeIdx === idx) {
+          return;
+        }
         const goto = tgt.goto;
         if (!goto) return;
         const targetCenter = goto === 'end'
@@ -1139,7 +1194,7 @@
     dot.setAttribute('class', 'edge-endpoint');
     dot.setAttribute('cx', String(endPoint.x));
     dot.setAttribute('cy', String(endPoint.y));
-    dot.setAttribute('r', '5');
+    dot.setAttribute('r', '7');
     g.appendChild(dot);
   }
 
@@ -1147,11 +1202,25 @@
     // Remove any prior temp group.
     const old = cv.svg.querySelector('.edge-temp-group');
     if (old) old.remove();
-    if (!cv.drag || cv.drag.kind !== 'connect') return;
-    const source = stepById(cv.drag.stepId);
+    if (!cv.drag) return;
+
+    // Both 'connect' (creating a brand-new edge) and 'reconnect' (re-routing
+    // an existing one) render the same temp line from the source-shape edge
+    // to the current cursor position.
+    let source = null;
+    let targetX, targetY;
+    if (cv.drag.kind === 'connect') {
+      source = stepById(cv.drag.stepId);
+      targetX = cv.drag.currentX;
+      targetY = cv.drag.currentY;
+    } else if (cv.drag.kind === 'reconnect') {
+      source = stepById(cv.drag.sourceId);
+      targetX = cv.drag.currentX;
+      targetY = cv.drag.currentY;
+    } else {
+      return;
+    }
     if (!source) return;
-    const targetX = cv.drag.currentX;
-    const targetY = cv.drag.currentY;
     const sourceEdge = shapeEdgePoint(source, targetX, targetY);
 
     const g = document.createElementNS(SVG_NS, 'g');
