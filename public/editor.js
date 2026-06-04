@@ -19,7 +19,6 @@
     workflow: null,       // the editable workflow (live mutated)
     originalFile: null,   // source filename on disk, null for new
     tab: 'form',          // 'canvas' | 'form' | 'json'
-    previewHidden: false, // user dismissed the right-hand preview pane
   };
 
   let els = null;
@@ -33,9 +32,6 @@
       tabForm:        document.getElementById('ed-tab-form'),
       tabJson:        document.getElementById('ed-tab-json'),
       closeEditor:    document.getElementById('ed-close-editor'),
-      closePreview:   document.getElementById('ed-close-preview'),
-      showPreview:    document.getElementById('ed-show-preview'),
-      previewPane:    document.querySelector('#edit-view .preview-pane'),
       canvasPane:     document.getElementById('ed-canvas'),
       canvasSvg:      document.getElementById('canvas-svg'),
       canvasIdInput: document.getElementById('ed-id-canvas'),
@@ -56,11 +52,6 @@
       cancel:         document.getElementById('ed-cancel'),
       delete:         document.getElementById('ed-delete'),
       saveStatus:     document.getElementById('ed-save-status'),
-      previewSteps:   document.getElementById('preview-steps'),
-      previewArrows:  document.getElementById('preview-arrows'),
-      previewEnd:     document.getElementById('preview-end-node'),
-      previewCanvas:  document.getElementById('preview-canvas'),
-      previewMsg:     document.getElementById('preview-msg'),
       select:         document.getElementById('wf-select'),
       newBtn:         document.getElementById('new-btn'),
       editBtn:        document.getElementById('edit-btn'),
@@ -97,7 +88,6 @@
     editing.workflow = workflow ? deepCopy(workflow) : blankWorkflow();
     editing.originalFile = originalFile || null;
     editing.tab = 'canvas';
-    editing.previewHidden = false;
     show();
   }
 
@@ -106,7 +96,6 @@
     editing.workflow = blankWorkflow(uniqueIdFromBase('new-workflow'));
     editing.originalFile = null;
     editing.tab = 'canvas';
-    editing.previewHidden = false;
     show();
   }
 
@@ -118,7 +107,6 @@
     editing.workflow = copy;
     editing.originalFile = null;
     editing.tab = 'canvas';
-    editing.previewHidden = false;
     show();
   }
 
@@ -166,14 +154,6 @@
     e.tabForm.addEventListener('click',   () => switchTab('form'));
     e.tabJson.addEventListener('click',   () => switchTab('json'));
     if (e.closeEditor)  e.closeEditor.addEventListener('click', onCancel);
-    if (e.closePreview) e.closePreview.addEventListener('click', () => {
-      editing.previewHidden = true;
-      render();
-    });
-    if (e.showPreview)  e.showPreview.addEventListener('click', () => {
-      editing.previewHidden = false;
-      render();
-    });
     e.id.addEventListener('input', (ev) => { editing.workflow.id = ev.target.value.trim(); renderValidation(); renderPreview(); });
     e.title.addEventListener('input', (ev) => { editing.workflow.title = ev.target.value; renderValidation(); renderPreview(); });
     e.addStep.addEventListener('click', onAddStep);
@@ -221,28 +201,15 @@
     e.canvasPane.classList.toggle('hidden', editing.tab !== 'canvas');
     e.formPane.classList.toggle('hidden',   editing.tab !== 'form');
     e.jsonPane.classList.toggle('hidden',   editing.tab !== 'json');
-
-    // Preview pane visibility: hidden on Canvas (the canvas is itself the
-    // visual editor) and hidden when the user dismissed it with its X. When
-    // dismissed on Form / Raw JSON, surface a "Show preview" button so the
-    // user can bring it back.
-    const previewVisible = editing.tab !== 'canvas' && !editing.previewHidden;
-    if (e.editSplit) e.editSplit.classList.toggle('canvas-only', !previewVisible);
-    if (e.showPreview) {
-      const showButton = editing.tab !== 'canvas' && editing.previewHidden;
-      e.showPreview.classList.toggle('hidden', !showButton);
-    }
   }
 
   // ---------- Render orchestration ----------
   function render() {
     captureFocusAndRun(() => {
       updateTabUI();
-      if (editing.tab === 'form') buildForm();
+      if (editing.tab === 'form')   buildForm();
       if (editing.tab === 'canvas') initCanvasIfNeeded();
       renderValidation();
-      // Skip preview render while on canvas — pane is hidden then anyway.
-      if (editing.tab !== 'canvas') renderPreview();
     });
   }
 
@@ -619,262 +586,9 @@
     e.save.title = v.errors.length ? 'Fix errors to enable Save' : 'Save the workflow';
   }
 
-  // ---------- Preview rendering ----------
-  function renderPreview() {
-    const e = E();
-    e.previewSteps.innerHTML = '';
-    Array.from(e.previewArrows.querySelectorAll('path, text, rect')).forEach((n) => n.remove());
-    e.previewEnd.classList.add('hidden');
-    e.previewMsg.classList.add('hidden');
-    e.previewMsg.textContent = '';
-    e.previewCanvas.style.width = '';
-    e.previewCanvas.style.height = '';
+  // (Read-only preview pane and renderer removed; the Canvas tab is the
+  //  interactive visual editor. See git history for the deleted code.)
 
-    const wf = editing.workflow;
-    if (!wf || !Array.isArray(wf.steps) || wf.steps.length === 0) {
-      e.previewMsg.classList.remove('hidden');
-      e.previewMsg.textContent = 'Add a step to see the preview.';
-      e.previewMsg.style.color = 'var(--muted)';
-      e.previewMsg.style.background = '#f9fafb';
-      e.previewMsg.style.borderTop = '1px solid #e5e7eb';
-      return;
-    }
-
-    const BOX_W = 280, GAP = 30, PAD_X = 140, PAD_Y = 20;
-    const canvasW = BOX_W + PAD_X * 2;
-    const centerX = canvasW / 2 - BOX_W / 2;
-
-    const positions = {};
-    let y = PAD_Y;
-
-    // Lay out steps in DFS-from-start order, then any unreachable steps in
-    // array order — same as the runner.
-    const orderedSteps = previewFlowOrder(wf);
-
-    orderedSteps.forEach((step) => {
-      if (!step || typeof step !== 'object') return;
-      const div = document.createElement('div');
-      div.className = 'step pending';
-      div.style.position = 'absolute';
-      div.style.left = centerX + 'px';
-      div.style.top = y + 'px';
-      div.style.width = BOX_W + 'px';
-
-      const top = document.createElement('div');
-      top.className = 'row-top';
-      const tag = document.createElement('span');
-      tag.className = 'type-tag';
-      tag.textContent = step.type || 'action';
-      const idTag = document.createElement('span');
-      idTag.className = 'id-tag';
-      idTag.textContent = step.id || '(no id)';
-      top.appendChild(tag);
-      top.appendChild(idTag);
-      div.appendChild(top);
-
-      const lbl = document.createElement('div');
-      lbl.className = 'label';
-      lbl.textContent = step.label || '(no label)';
-      div.appendChild(lbl);
-
-      if (step.type === 'decision' && Array.isArray(step.options) && step.options.length) {
-        const list = document.createElement('div');
-        list.className = 'state-text';
-        list.textContent = 'Options: ' + step.options.map((o) => o.label || '?').join(', ');
-        div.appendChild(list);
-      }
-
-      e.previewSteps.appendChild(div);
-      const h = div.offsetHeight || 80;
-      if (step.id) positions[step.id] = { x: centerX, y, w: BOX_W, h };
-      y += h + GAP;
-    });
-
-    const endY = y + 16;
-    e.previewEnd.classList.remove('hidden');
-    e.previewEnd.style.position = 'absolute';
-    e.previewEnd.style.left = (centerX + BOX_W / 2 - 30) + 'px';
-    e.previewEnd.style.top = endY + 'px';
-    positions['end'] = { x: centerX + BOX_W / 2 - 30, y: endY, w: 60, h: 30 };
-
-    const totalH = endY + 60;
-    e.previewCanvas.style.width = canvasW + 'px';
-    e.previewCanvas.style.height = totalH + 'px';
-    e.previewArrows.setAttribute('width', String(canvasW));
-    e.previewArrows.setAttribute('height', String(totalH));
-    e.previewArrows.setAttribute('viewBox', `0 0 ${canvasW} ${totalH}`);
-
-    drawPreviewArrows(wf, positions, e.previewArrows, canvasW);
-  }
-
-  function previewFlowOrder(wf) {
-    if (!wf || !Array.isArray(wf.steps) || wf.steps.length === 0) return [];
-    const byId = Object.create(null);
-    const indexById = Object.create(null);
-    wf.steps.forEach((s, i) => { if (s && s.id) { byId[s.id] = s; indexById[s.id] = i; } });
-
-    function defaultNext(id) {
-      const idx = indexById[id];
-      if (idx == null) return 'end';
-      if (idx + 1 < wf.steps.length) return (wf.steps[idx + 1] && wf.steps[idx + 1].id) || 'end';
-      return 'end';
-    }
-    function successors(s) {
-      if (!s || !s.id) return [];
-      if (s.type === 'decision') return (Array.isArray(s.options) ? s.options : []).map((o) => o.goto);
-      if (Object.prototype.hasOwnProperty.call(s, 'next') && s.next !== undefined && s.next !== '') return [s.next];
-      return [defaultNext(s.id)];
-    }
-
-    const visited = new Set();
-    const order = [];
-    function walk(id) {
-      if (!id || id === 'end' || visited.has(id) || !byId[id]) return;
-      visited.add(id);
-      order.push(byId[id]);
-      for (const n of successors(byId[id])) walk(n);
-    }
-    walk(wf.steps[0].id);
-    for (const s of wf.steps) {
-      if (s && s.id && !visited.has(s.id)) order.push(s);
-    }
-    return order;
-  }
-
-  function shortLabel(s, max) {
-    s = String(s == null ? '' : s);
-    if (s.length <= max) return s;
-    return s.slice(0, max - 1).trimEnd() + '…';
-  }
-
-  function arrowCrossesBoxes(from, to, positions, fromId, toId) {
-    if (to.y <= from.y) return false; // backward arrows side-route already
-    const topY = from.y + from.h;
-    const botY = to.y;
-    for (const id in positions) {
-      if (id === 'end' || id === fromId || id === toId) continue;
-      const p = positions[id];
-      if (!p) continue;
-      if (p.y + p.h > topY && p.y < botY) return true;
-    }
-    return false;
-  }
-
-  function drawPreviewArrows(wf, positions, svg, canvasW) {
-    const indexById = {};
-    wf.steps.forEach((s, i) => { if (s && s.id) indexById[s.id] = i; });
-
-    function defaultNext(id) {
-      const idx = indexById[id];
-      if (idx == null) return 'end';
-      if (idx + 1 < wf.steps.length) return (wf.steps[idx + 1] && wf.steps[idx + 1].id) || 'end';
-      return 'end';
-    }
-
-    function successors(s) {
-      if (!s || !s.id) return [];
-      if (s.type === 'decision') {
-        return (Array.isArray(s.options) ? s.options : []).map((o) => ({ to: o.goto, label: o.label }));
-      }
-      if (Object.prototype.hasOwnProperty.call(s, 'next') && s.next !== undefined && s.next !== '') {
-        return [{ to: s.next, label: null }];
-      }
-      return [{ to: defaultNext(s.id), label: null }];
-    }
-
-    const SIDE_BASE_X = canvasW - 30;
-    const SIDE_TRACK_SPACING = 18;
-    const LEAD = 14;
-    let sideTrack = 0;
-
-    for (const step of wf.steps) {
-      if (!step || !step.id) continue;
-      const outs = successors(step);
-      let stepSideIdx = 0;
-      outs.forEach((edge, idx, arr) => {
-        const from = positions[step.id];
-        const to = positions[edge.to];
-        if (!from || !to) return;
-
-        let sx;
-        if (arr.length === 1) sx = from.x + from.w / 2;
-        else {
-          const spread = Math.min(from.w - 40, 40 * (arr.length - 1));
-          const start = from.x + from.w / 2 - spread / 2;
-          sx = start + spread * (idx / Math.max(1, arr.length - 1));
-        }
-        const sy = from.y + from.h;
-        const tx = to.x + to.w / 2;
-        const ty = to.y;
-        const isBackward = to.y < from.y;
-        const crossesBoxes = !isBackward && arrowCrossesBoxes(from, to, positions, step.id, edge.to);
-        const sideRoute = isBackward || crossesBoxes;
-        let sideX = null;
-        let labelYOverride = null;
-        if (sideRoute) {
-          sideX = SIDE_BASE_X - sideTrack * SIDE_TRACK_SPACING;
-          sideTrack++;
-          labelYOverride = sy + LEAD + 8 + stepSideIdx * 20;
-          stepSideIdx++;
-        }
-
-        let d;
-        if (sideRoute) {
-          const dipY = sy + LEAD;
-          const arrY = ty - LEAD;
-          d =
-            `M ${sx} ${sy}` +
-            ` L ${sx} ${dipY}` +
-            ` L ${sideX} ${dipY}` +
-            ` L ${sideX} ${arrY}` +
-            ` L ${tx} ${arrY}` +
-            ` L ${tx} ${ty - 6}`;
-        } else {
-          const dy = ty - sy;
-          if (Math.abs(sx - tx) < 2 && dy > 0 && dy < 200) {
-            d = `M ${sx} ${sy} L ${tx} ${ty - 6}`;
-          } else {
-            d = `M ${sx} ${sy} C ${sx} ${sy + Math.max(16, dy / 2)}, ${tx} ${ty - Math.max(16, dy / 2)}, ${tx} ${ty - 6}`;
-          }
-        }
-
-        const path = document.createElementNS(SVG_NS, 'path');
-        path.setAttribute('d', d);
-        path.setAttribute('class', sideRoute ? 'arrow-loop' : 'arrow-default');
-        path.setAttribute('marker-end', 'url(#pv-arrowhead)');
-        svg.appendChild(path);
-
-        if (edge.label) {
-          const lx = sideRoute ? (sideX + 6) : ((sx + tx) / 2 + 8);
-          const ly = sideRoute ? labelYOverride : ((sy + ty) / 2);
-          const text = document.createElementNS(SVG_NS, 'text');
-          text.setAttribute('x', lx);
-          text.setAttribute('y', ly);
-          text.setAttribute('class', 'arrow-label');
-          text.setAttribute('dominant-baseline', 'middle');
-          const display = shortLabel(edge.label, 24);
-          text.textContent = display;
-          if (display !== edge.label) {
-            const t = document.createElementNS(SVG_NS, 'title');
-            t.textContent = edge.label;
-            text.appendChild(t);
-          }
-          svg.appendChild(text);
-          try {
-            const bb = text.getBBox();
-            const rect = document.createElementNS(SVG_NS, 'rect');
-            rect.setAttribute('x', String(bb.x - 4));
-            rect.setAttribute('y', String(bb.y - 2));
-            rect.setAttribute('width', String(bb.width + 8));
-            rect.setAttribute('height', String(bb.height + 4));
-            rect.setAttribute('rx', '4');
-            rect.setAttribute('class', 'arrow-label-bg');
-            svg.insertBefore(rect, text);
-          } catch (_) {}
-        }
-      });
-    }
-  }
 
   // ---------- Raw JSON tab ----------
   function onJsonInput() {

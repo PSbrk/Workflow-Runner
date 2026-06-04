@@ -578,7 +578,7 @@ main { max-width: 1500px; }
 
 .edit-split {
   display: grid;
-  grid-template-columns: minmax(440px, 1fr) minmax(420px, 1fr);
+  grid-template-columns: 1fr;
   gap: 16px;
   align-items: start;
 }
@@ -624,17 +624,6 @@ main { max-width: 1500px; }
   color: var(--error);
 }
 
-.pane-show {
-  font: inherit;
-  font-size: 12px;
-  padding: 4px 10px;
-  border: 1px solid #d1d5db;
-  background: white;
-  border-radius: 6px;
-  color: var(--active);
-  cursor: pointer;
-}
-.pane-show:hover { background: var(--active-bg); border-color: var(--active); }
 
 .tabs { display: flex; gap: 4px; }
 .tabs .tab {
@@ -1232,51 +1221,6 @@ input.input-error, textarea.input-error {
   width: 360px;
   max-width: 50vw;
 }
-
-/* When the canvas tab is active, hide the preview pane and let the editor pane span the row. */
-.edit-split.canvas-only { grid-template-columns: 1fr; }
-.edit-split.canvas-only .preview-pane { display: none; }
-
-/* ============================================================
-   Preview pane
-   ============================================================ */
-.preview-pane { min-height: 400px; }
-
-#preview-canvas-wrap {
-  padding: 16px;
-  overflow: auto;
-  flex: 1;
-  max-height: 700px;
-}
-
-#preview-canvas {
-  position: relative;
-  margin: 0 auto;
-}
-
-#preview-arrows {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  overflow: visible;
-}
-
-#preview-arrows path { fill: none; stroke-width: 1.75; }
-
-.preview-msg {
-  padding: 24px;
-  text-align: center;
-  color: var(--error);
-  font-size: 13px;
-  background: var(--error-bg);
-  border-top: 1px solid var(--error-border);
-  border-radius: 0 0 8px 8px;
-}
-
-/* Preview-mode steps look like Run-mode steps but stay non-interactive. */
-#preview-steps .step button { pointer-events: none; opacity: 0.7; }
 
 /* While editing, hide the run view but keep the legend visible. */
 body.editing .legend { display: none; }

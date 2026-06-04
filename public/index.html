@@ -45,7 +45,6 @@
               <button id="ed-tab-form"   type="button" class="tab"        role="tab">Form</button>
               <button id="ed-tab-json"   type="button" class="tab"        role="tab">Raw JSON</button>
             </div>
-            <button id="ed-show-preview" type="button" class="pane-show hidden" title="Show preview pane">Show preview ▸</button>
             <button id="ed-close-editor" type="button" class="pane-close" title="Close editor (Esc)" aria-label="Close editor">✕</button>
           </div>
 
@@ -129,26 +128,6 @@
           </div>
         </div>
 
-        <div class="edit-pane preview-pane">
-          <div class="edit-pane-head">
-            <strong>Preview</strong>
-            <button id="ed-close-preview" type="button" class="pane-close" title="Hide preview pane" aria-label="Hide preview pane">✕</button>
-          </div>
-          <div id="preview-canvas-wrap">
-            <div id="preview-canvas">
-              <svg id="preview-arrows" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <marker id="pv-arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
-                    <path d="M0,0 L0,6 L9,3 z" fill="#6b7280"/>
-                  </marker>
-                </defs>
-              </svg>
-              <div id="preview-steps"></div>
-              <div id="preview-end-node" class="end-node hidden">END</div>
-            </div>
-          </div>
-          <div id="preview-msg" class="preview-msg hidden"></div>
-        </div>
       </div>
     </section>
   </main>
