@@ -369,6 +369,20 @@
       return;
     }
 
+    // Handle: delete an edge via the ✕ button on a selected edge.
+    if (target.classList && target.classList.contains('edge-delete-btn')) {
+      e.preventDefault();
+      e.stopPropagation();
+      const edgeGroup = target.closest('.edge-group');
+      if (edgeGroup) {
+        const sourceId = edgeGroup.getAttribute('data-source-id');
+        const edgeIdx  = parseInt(edgeGroup.getAttribute('data-edge-idx'), 10);
+        deleteEdge(sourceId, edgeIdx);
+        cv.selectedEdge = null;
+      }
+      return;
+    }
+
     // Handle: drag an edge's endpoint dot to reroute the connection.
     if (target.classList && target.classList.contains('edge-endpoint')) {
       e.preventDefault();
@@ -1134,17 +1148,19 @@
     // Directional arrow at the path midpoint + small dot at the target end.
     decorateEdgePath(g, path, targetEdge);
 
+    // Compute midpoint geometry once — used by the optional label and the
+    // selected-edge delete button.
+    const len = path.getTotalLength();
+    const mid = path.getPointAtLength(len / 2);
+    const a = path.getPointAtLength(Math.max(0, len / 2 - 0.5));
+    const b = path.getPointAtLength(Math.min(len, len / 2 + 0.5));
+    const tx2 = b.x - a.x, ty2 = b.y - a.y;
+    const tlen = Math.sqrt(tx2 * tx2 + ty2 * ty2) || 1;
+    const nx = -ty2 / tlen, ny = tx2 / tlen; // perpendicular unit vector
+
     // Label (decision options) — positioned slightly off the midpoint so it
     // doesn't sit on top of the arrowhead.
     if (label) {
-      // Compute a label position offset perpendicular to the tangent at the midpoint.
-      const len = path.getTotalLength();
-      const mid = path.getPointAtLength(len / 2);
-      const a = path.getPointAtLength(Math.max(0, len / 2 - 0.5));
-      const b = path.getPointAtLength(Math.min(len, len / 2 + 0.5));
-      const tx = b.x - a.x, ty = b.y - a.y;
-      const tlen = Math.sqrt(tx * tx + ty * ty) || 1;
-      const nx = -ty / tlen, ny = tx / tlen; // perpendicular unit vector
       const lx = mid.x + nx * 14;
       const ly = mid.y + ny * 14;
 
@@ -1169,6 +1185,25 @@
       const editHandler = (e) => { e.stopPropagation(); editEdgeLabel(source.id, idx); };
       lblText.addEventListener('dblclick', editHandler);
       bg.addEventListener('dblclick', editHandler);
+    }
+
+    // Delete button — shown only when this edge is selected, sitting on the
+    // opposite side of the midpoint from the label so the two don't overlap.
+    if (isSelected) {
+      const dx = mid.x - nx * (label ? 20 : 18);
+      const dy = mid.y - ny * (label ? 20 : 18);
+      const delBtn = document.createElementNS(SVG_NS, 'circle');
+      delBtn.setAttribute('class', 'edge-delete-btn');
+      delBtn.setAttribute('cx', String(dx));
+      delBtn.setAttribute('cy', String(dy));
+      delBtn.setAttribute('r', '10');
+      g.appendChild(delBtn);
+      const delT = document.createElementNS(SVG_NS, 'text');
+      delT.setAttribute('class', 'edge-delete-btn-text');
+      delT.setAttribute('x', String(dx));
+      delT.setAttribute('y', String(dy + 5));
+      delT.textContent = '✕';
+      g.appendChild(delT);
     }
   }
 

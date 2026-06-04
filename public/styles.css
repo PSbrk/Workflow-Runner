@@ -1160,6 +1160,27 @@ input.input-error, textarea.input-error {
 }
 .canvas-svg .edge-temp-group .edge-arrowhead { fill: var(--active); }
 .canvas-svg .edge-temp-group .edge-endpoint  { fill: white; stroke: var(--active); }
+/* CRITICAL: temp-edge decorations must not intercept the drop. The endpoint
+   dot would otherwise sit under the cursor and steal the mouseup that's
+   supposed to land on the target shape. */
+.canvas-svg .edge-temp-group * { pointer-events: none; }
+
+/* Delete button for a selected edge — appears next to the edge midpoint. */
+.canvas-svg .edge-delete-btn {
+  fill: white;
+  stroke: var(--error);
+  stroke-width: 1.5;
+  cursor: pointer;
+}
+.canvas-svg .edge-delete-btn:hover { fill: var(--error); }
+.canvas-svg .edge-delete-btn-text {
+  fill: var(--error);
+  font-size: 13px;
+  font-weight: 700;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.canvas-svg .edge-delete-btn:hover ~ .edge-delete-btn-text { fill: white; }
 
 .canvas-svg .edge-label-bg {
   fill: white;
