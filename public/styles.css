@@ -545,6 +545,30 @@ button.btn-danger {
 }
 button.btn-danger:hover { background: var(--error-bg); }
 
+button.btn-primary-outline {
+  background: white;
+  color: var(--active);
+  border-color: var(--active);
+  font-weight: 600;
+}
+button.btn-primary-outline:hover { background: var(--active-bg); }
+
+.ed-save-status {
+  font-size: 12.5px;
+  padding: 4px 10px;
+  border-radius: 5px;
+  background: var(--ok-bg);
+  color: var(--ok);
+  border: 1px solid var(--ok-border);
+  transition: opacity 0.2s;
+  font-weight: 500;
+}
+.ed-save-status.err {
+  background: var(--error-bg);
+  color: var(--error);
+  border-color: var(--error-border);
+}
+
 /* ============================================================
    Edit view
    ============================================================ */

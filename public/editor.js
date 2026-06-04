@@ -51,9 +51,11 @@
       addStep:        document.getElementById('ed-add-step'),
       validation:     document.getElementById('ed-validation'),
       save:           document.getElementById('ed-save'),
+      saveClose:      document.getElementById('ed-save-close'),
       saveAs:         document.getElementById('ed-save-as'),
       cancel:         document.getElementById('ed-cancel'),
       delete:         document.getElementById('ed-delete'),
+      saveStatus:     document.getElementById('ed-save-status'),
       previewSteps:   document.getElementById('preview-steps'),
       previewArrows:  document.getElementById('preview-arrows'),
       previewEnd:     document.getElementById('preview-end-node'),
@@ -140,6 +142,8 @@
     editing.active = false;
     if (globalThis.WfrEditorCanvas) globalThis.WfrEditorCanvas.destroy();
     const e = E();
+    if (e.saveStatus) e.saveStatus.classList.add('hidden');
+    if (saveStatusTimer) { clearTimeout(saveStatusTimer); saveStatusTimer = null; }
     e.runView.classList.remove('hidden');
     e.editView.classList.add('hidden');
     document.body.classList.remove('editing');
@@ -173,7 +177,8 @@
     e.id.addEventListener('input', (ev) => { editing.workflow.id = ev.target.value.trim(); renderValidation(); renderPreview(); });
     e.title.addEventListener('input', (ev) => { editing.workflow.title = ev.target.value; renderValidation(); renderPreview(); });
     e.addStep.addEventListener('click', onAddStep);
-    e.save.addEventListener('click', onSave);
+    e.save.addEventListener('click', () => onSave(false));
+    if (e.saveClose) e.saveClose.addEventListener('click', () => onSave(true));
     e.saveAs.addEventListener('click', onSaveAs);
     e.cancel.addEventListener('click', onCancel);
     e.delete.addEventListener('click', onDelete);
@@ -898,31 +903,51 @@
     return { ok: res.ok, status: res.status, data };
   }
 
-  async function onSave() {
+  let saveStatusTimer = null;
+  function showSaveStatus(kind, msg) {
+    const el = E().saveStatus;
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    el.classList.toggle('err', kind === 'error');
+    if (saveStatusTimer) clearTimeout(saveStatusTimer);
+    if (kind === 'success') {
+      saveStatusTimer = setTimeout(() => el.classList.add('hidden'), 3000);
+    }
+  }
+
+  async function onSave(closeAfter) {
     if (editing.tab === 'json') {
       try {
         editing.workflow = JSON.parse(E().jsonText.value);
       } catch (err) {
-        alert('Cannot save: JSON parse error — ' + err.message);
+        showSaveStatus('error', 'JSON parse error — ' + err.message);
         return;
       }
     }
     if (!ID_RE.test(editing.workflow.id || '')) {
-      alert('Cannot save: workflow id must be 1–64 chars (letters, digits, hyphen, underscore; starts with letter/digit).');
+      showSaveStatus('error', 'Invalid workflow id (use letters, digits, hyphen, underscore — must start with a letter or digit).');
       return;
     }
     const v = validateWorkflow(editing.workflow);
     if (v.errors.length) {
-      alert('Cannot save: workflow has validation errors. Fix them first.');
+      showSaveStatus('error', `Can't save: ${v.errors.length} validation error${v.errors.length === 1 ? '' : 's'}. Check the panel above.`);
       return;
     }
     const r = await postWorkflow(editing.workflow, editing.originalFile);
     if (!r.ok) {
-      alert('Save failed: ' + ((r.data && r.data.error) || ('HTTP ' + r.status)));
+      showSaveStatus('error', 'Save failed: ' + ((r.data && r.data.error) || ('HTTP ' + r.status)));
       return;
     }
     editing.originalFile = (r.data && r.data.file) || (editing.workflow.id + '.json');
-    hide(true);
+    showSaveStatus('success', '✓ Saved');
+    if (closeAfter) {
+      hide(true);
+    } else if (globalThis.WfrApp && globalThis.WfrApp.refreshSilent) {
+      // Keep the editor open — just refresh the workflow list in the
+      // background so the picker reflects renames / new files.
+      globalThis.WfrApp.refreshSilent(editing.workflow.id);
+    }
   }
 
   async function onSaveAs() {

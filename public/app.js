@@ -73,6 +73,47 @@ globalThis.WfrApp = {
     return m ? m.file : null;
   },
   refresh: (preferId) => loadAll(preferId),
+  // refreshSilent: re-fetch the workflow list (so the picker reflects any
+  // renames/new files from a save) without forcing a selection change or
+  // disrupting an open editor.
+  refreshSilent: async (preferId) => {
+    try {
+      const res = await fetch('/api/workflows', { cache: 'no-store' });
+      const data = await res.json();
+      const entries = (data.workflows || []).map((entry) => {
+        if (entry.parseError) {
+          return { ...entry, validation: { errors: [{ message: `JSON parse error: ${entry.parseError}` }], warnings: [] } };
+        }
+        return { ...entry, validation: validateWorkflow(entry.workflow) };
+      });
+      allWorkflows = entries;
+      const prevValue = els.select.value;
+      els.select.innerHTML = '';
+      for (const e of entries) {
+        const opt = document.createElement('option');
+        const id = (e.workflow && e.workflow.id) || e.file;
+        const title = (e.workflow && e.workflow.title) || id;
+        opt.value = id;
+        const badge = e.validation.errors.length ? ' ⚠ errors' : (e.validation.warnings.length ? ' ⚠ warnings' : '');
+        opt.textContent = `${title}${badge}`;
+        els.select.appendChild(opt);
+      }
+      const has = (id) => entries.some((e) => e.workflow && e.workflow.id === id);
+      const target = (preferId && has(preferId)) ? preferId
+                  : (prevValue && has(prevValue)) ? prevValue
+                  : (entries[0] && entries[0].workflow && entries[0].workflow.id) || '';
+      els.select.value = target;
+      // Update currentEntry/currentWorkflow so reopening the runner shows the
+      // saved version, but don't re-render anything visible (the editor is
+      // up). selectWorkflow() handles this and is safe to call while the run
+      // view is hidden.
+      selectWorkflow(target);
+    } catch (e) {
+      // Silent — the editor's save-status already reported the save itself
+      // succeeded; this background refresh failing is a minor inconvenience
+      // resolved by a manual Reload.
+    }
+  },
 };
 
 async function loadAll(preferId) {
