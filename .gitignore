@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*~
+
+# Atomic-write temp files used by server.py on save
+*.json.tmp
+
+# Local Claude Code config (per-machine launch paths, etc.)
+.claude/

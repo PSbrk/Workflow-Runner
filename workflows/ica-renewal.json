@@ -1,0 +1,64 @@
+{
+  "id": "ica-renewal",
+  "title": "ICA Renewal",
+  "steps": [
+    {
+      "id": "s1",
+      "type": "action",
+      "label": "Receive email From Asana informing us that there are >60 days on a contract that we want to be aware of."
+    },
+    {
+      "id": "s2",
+      "type": "action",
+      "label": "God to Tableau and search the amount spent in the past year with said vendor."
+    },
+    {
+      "id": "s3",
+      "type": "wait",
+      "label": "Email the PM. Do you want this renewed? If so, you spent X over the last 12 months. Do you want to adjust that amount in the renewal?",
+      "next": "s3-d"
+    },
+    {
+      "id": "s4",
+      "type": "decision",
+      "label": "Review PM response",
+      "options": [
+        {
+          "label": "Yes, to renewal. Yes, to amount change.",
+          "goto": "end"
+        },
+        {
+          "label": "Yes, to renewal. No, to amount change.",
+          "goto": "end"
+        },
+        {
+          "label": "No, to renewal.",
+          "goto": "s5.3"
+        }
+      ]
+    },
+    {
+      "id": "s5.3",
+      "type": "action",
+      "label": "Update Asana to allow ICA to expire",
+      "next": "end"
+    },
+    {
+      "id": "s5.1",
+      "type": "action",
+      "label": "Email vendor informing them that we'd like to renew our ICA with them, and asking for a new COI and W-9",
+      "next": "s5.11"
+    },
+    {
+      "id": "s5.11",
+      "type": "wait",
+      "label": "Wait for response from vendor"
+    },
+    {
+      "id": "s3-d",
+      "type": "wait",
+      "label": "Wait for PM to respond",
+      "next": "s4"
+    }
+  ]
+}

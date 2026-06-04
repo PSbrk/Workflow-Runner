@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workflow Runner</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>Workflow Runner</h1>
+    <div class="controls">
+      <label for="wf-select">Workflow</label>
+      <select id="wf-select" aria-label="Select workflow"></select>
+      <button id="new-btn"     type="button" title="Create a new blank workflow">+ New</button>
+      <button id="edit-btn"    type="button" title="Edit this workflow">Edit</button>
+      <button id="reset-btn"   type="button" title="Reset progress for this workflow">Reset</button>
+      <button id="reload-btn"  type="button" title="Re-read workflow files from disk">Reload</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="status-bar"   class="status-bar hidden"   role="status"></section>
+    <section id="errors-bar"   class="errors-bar hidden"   role="alert"></section>
+    <section id="warnings-bar" class="warnings-bar hidden"></section>
+
+    <!-- Run view: single-card "flashcard" UI -->
+    <section id="run-view">
+      <div class="run-shell">
+        <div id="run-title" class="run-title"></div>
+        <div id="run-trail" class="run-trail"></div>
+        <div id="flashcard" class="flashcard"></div>
+        <div id="run-progress" class="run-progress"></div>
+      </div>
+    </section>
+
+    <!-- Edit view -->
+    <section id="edit-view" class="hidden">
+      <div class="edit-split">
+        <div class="edit-pane">
+          <div class="edit-pane-head">
+            <strong>Editor</strong>
+            <div class="tabs" role="tablist">
+              <button id="ed-tab-canvas" type="button" class="tab active" role="tab">Canvas</button>
+              <button id="ed-tab-form"   type="button" class="tab"        role="tab">Form</button>
+              <button id="ed-tab-json"   type="button" class="tab"        role="tab">Raw JSON</button>
+            </div>
+          </div>
+
+          <!-- Canvas tab -->
+          <div id="ed-canvas" class="ed-canvas">
+            <div class="canvas-meta">
+              <label class="ed-field">
+                <span class="ed-label">ID</span>
+                <input id="ed-id-canvas" type="text" autocomplete="off" spellcheck="false" placeholder="my-workflow">
+              </label>
+              <label class="ed-field">
+                <span class="ed-label">Title</span>
+                <input id="ed-title-canvas" type="text" autocomplete="off" placeholder="My Workflow">
+              </label>
+            </div>
+            <div class="canvas-toolbar">
+              <button class="palette-btn" data-shape="action"  type="button">
+                <span class="shape-icon-mini sm-action"></span> Action
+              </button>
+              <button class="palette-btn" data-shape="decision" type="button">
+                <span class="shape-icon-mini sm-decision"></span> Decision
+              </button>
+              <button class="palette-btn" data-shape="wait" type="button">
+                <span class="shape-icon-mini sm-wait"></span> Wait
+              </button>
+              <span class="toolbar-spacer"></span>
+              <span class="toolbar-hint">Drag shapes to move • drag the <strong>+</strong> handle to another shape to connect</span>
+            </div>
+            <svg id="canvas-svg" class="canvas-svg" tabindex="0">
+              <defs>
+                <marker id="cv-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L9,3 z" fill="#6b7280"/>
+                </marker>
+              </defs>
+            </svg>
+            <div id="canvas-validation" class="ed-validation canvas-validation"></div>
+          </div>
+
+          <!-- Form tab -->
+          <div id="ed-form" class="ed-form hidden">
+            <div class="ed-meta">
+              <label class="ed-field">
+                <span class="ed-label">ID</span>
+                <input id="ed-id" type="text" autocomplete="off" spellcheck="false" placeholder="my-workflow">
+              </label>
+              <label class="ed-field">
+                <span class="ed-label">Title</span>
+                <input id="ed-title" type="text" autocomplete="off" placeholder="My Workflow">
+              </label>
+            </div>
+
+            <div id="ed-validation" class="ed-validation"></div>
+
+            <ol id="ed-steps" class="ed-steps"></ol>
+
+            <button id="ed-add-step" type="button" class="ed-add-step">+ Add step</button>
+          </div>
+
+          <!-- Raw JSON tab -->
+          <div id="ed-json" class="ed-json hidden">
+            <textarea id="ed-json-text" spellcheck="false" autocomplete="off"></textarea>
+            <div id="ed-json-status" class="ed-json-status"></div>
+          </div>
+
+          <div class="ed-footer">
+            <button id="ed-save"     type="button" class="btn-primary">Save</button>
+            <button id="ed-save-as"  type="button">Save as new…</button>
+            <button id="ed-cancel"   type="button">Cancel</button>
+            <span class="ed-spacer"></span>
+            <button id="ed-delete"   type="button" class="btn-danger">Delete workflow</button>
+          </div>
+        </div>
+
+        <div class="edit-pane preview-pane">
+          <div class="edit-pane-head"><strong>Preview</strong></div>
+          <div id="preview-canvas-wrap">
+            <div id="preview-canvas">
+              <svg id="preview-arrows" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="pv-arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                    <path d="M0,0 L0,6 L9,3 z" fill="#6b7280"/>
+                  </marker>
+                </defs>
+              </svg>
+              <div id="preview-steps"></div>
+              <div id="preview-end-node" class="end-node hidden">END</div>
+            </div>
+          </div>
+          <div id="preview-msg" class="preview-msg hidden"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="validator.js"></script>
+  <script src="editor-canvas.js"></script>
+  <script src="editor.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
