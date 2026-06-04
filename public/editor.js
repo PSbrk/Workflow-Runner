@@ -18,7 +18,8 @@
     active: false,
     workflow: null,       // the editable workflow (live mutated)
     originalFile: null,   // source filename on disk, null for new
-    tab: 'form',          // 'form' | 'json'
+    tab: 'form',          // 'canvas' | 'form' | 'json'
+    previewHidden: false, // user dismissed the right-hand preview pane
   };
 
   let els = null;
@@ -31,6 +32,10 @@
       tabCanvas:      document.getElementById('ed-tab-canvas'),
       tabForm:        document.getElementById('ed-tab-form'),
       tabJson:        document.getElementById('ed-tab-json'),
+      closeEditor:    document.getElementById('ed-close-editor'),
+      closePreview:   document.getElementById('ed-close-preview'),
+      showPreview:    document.getElementById('ed-show-preview'),
+      previewPane:    document.querySelector('#edit-view .preview-pane'),
       canvasPane:     document.getElementById('ed-canvas'),
       canvasSvg:      document.getElementById('canvas-svg'),
       canvasIdInput: document.getElementById('ed-id-canvas'),
@@ -90,6 +95,7 @@
     editing.workflow = workflow ? deepCopy(workflow) : blankWorkflow();
     editing.originalFile = originalFile || null;
     editing.tab = 'canvas';
+    editing.previewHidden = false;
     show();
   }
 
@@ -98,6 +104,7 @@
     editing.workflow = blankWorkflow(uniqueIdFromBase('new-workflow'));
     editing.originalFile = null;
     editing.tab = 'canvas';
+    editing.previewHidden = false;
     show();
   }
 
@@ -109,6 +116,7 @@
     editing.workflow = copy;
     editing.originalFile = null;
     editing.tab = 'canvas';
+    editing.previewHidden = false;
     show();
   }
 
@@ -153,6 +161,15 @@
     e.tabCanvas.addEventListener('click', () => switchTab('canvas'));
     e.tabForm.addEventListener('click',   () => switchTab('form'));
     e.tabJson.addEventListener('click',   () => switchTab('json'));
+    if (e.closeEditor)  e.closeEditor.addEventListener('click', onCancel);
+    if (e.closePreview) e.closePreview.addEventListener('click', () => {
+      editing.previewHidden = true;
+      render();
+    });
+    if (e.showPreview)  e.showPreview.addEventListener('click', () => {
+      editing.previewHidden = false;
+      render();
+    });
     e.id.addEventListener('input', (ev) => { editing.workflow.id = ev.target.value.trim(); renderValidation(); renderPreview(); });
     e.title.addEventListener('input', (ev) => { editing.workflow.title = ev.target.value; renderValidation(); renderPreview(); });
     e.addStep.addEventListener('click', onAddStep);
@@ -199,10 +216,17 @@
     e.canvasPane.classList.toggle('hidden', editing.tab !== 'canvas');
     e.formPane.classList.toggle('hidden',   editing.tab !== 'form');
     e.jsonPane.classList.toggle('hidden',   editing.tab !== 'json');
-    // Hide the read-only preview pane while editing on the canvas — the canvas
-    // is itself the visual editor, so a duplicate preview is redundant. Show
-    // it again for Form / Raw JSON tabs.
-    if (e.editSplit) e.editSplit.classList.toggle('canvas-only', editing.tab === 'canvas');
+
+    // Preview pane visibility: hidden on Canvas (the canvas is itself the
+    // visual editor) and hidden when the user dismissed it with its X. When
+    // dismissed on Form / Raw JSON, surface a "Show preview" button so the
+    // user can bring it back.
+    const previewVisible = editing.tab !== 'canvas' && !editing.previewHidden;
+    if (e.editSplit) e.editSplit.classList.toggle('canvas-only', !previewVisible);
+    if (e.showPreview) {
+      const showButton = editing.tab !== 'canvas' && editing.previewHidden;
+      e.showPreview.classList.toggle('hidden', !showButton);
+    }
   }
 
   // ---------- Render orchestration ----------

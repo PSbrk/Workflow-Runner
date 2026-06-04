@@ -45,6 +45,8 @@
               <button id="ed-tab-form"   type="button" class="tab"        role="tab">Form</button>
               <button id="ed-tab-json"   type="button" class="tab"        role="tab">Raw JSON</button>
             </div>
+            <button id="ed-show-preview" type="button" class="pane-show hidden" title="Show preview pane">Show preview ▸</button>
+            <button id="ed-close-editor" type="button" class="pane-close" title="Close editor (Esc)" aria-label="Close editor">✕</button>
           </div>
 
           <!-- Canvas tab -->
@@ -126,7 +128,10 @@
         </div>
 
         <div class="edit-pane preview-pane">
-          <div class="edit-pane-head"><strong>Preview</strong></div>
+          <div class="edit-pane-head">
+            <strong>Preview</strong>
+            <button id="ed-close-preview" type="button" class="pane-close" title="Hide preview pane" aria-label="Hide preview pane">✕</button>
+          </div>
           <div id="preview-canvas-wrap">
             <div id="preview-canvas">
               <svg id="preview-arrows" xmlns="http://www.w3.org/2000/svg">
