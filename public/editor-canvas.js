@@ -39,19 +39,41 @@
   const MIN_BBOX_H  = 56;    // smallest a shape will ever get
   const ASPECT      = 4;     // width:height target
   const END_SIZE    = { w: 100, h: 44, half: { w: 50, h: 22 } };
+  const DRAG_THRESHOLD_PX = 4;  // mouse must move this far before drag-move kicks in
+                                // (so clicks/double-clicks don't accidentally nudge shapes)
+
+  // Width the canvas viewport currently has on-screen — used to cap shape
+  // width to half the visible canvas. Falls back to 800 if the viewport
+  // element isn't found yet.
+  function canvasViewportWidth() {
+    const el = document.querySelector('.canvas-viewport');
+    return (el && el.clientWidth) || 800;
+  }
+  function maxBboxWidth() {
+    // World-space cap. Zoom is applied later in applyZoom(); a world-space
+    // shape ≤ vp/2 stays ≤ vp/2 on screen at 100% zoom.
+    return Math.max(220, canvasViewportWidth() * 0.5);
+  }
 
   function wrapForType(label) {
-    const text = (label || '').trim() || '(double-click to edit)';
-    // Try line counts 1..6, picking the smallest one that fits the text
-    // wrapped to ~7n characters per line (so total text aspect is ~3:1, which
-    // becomes ~4:1 after padding). maxLines=999 keeps wrapText from
-    // truncating — we want the *natural* line count to test the fit.
-    for (let n = 1; n <= 6; n++) {
-      const target = Math.ceil(7 * n);
+    const text = (label || '').trim() || '(no label)';
+    // Cap line width so the resulting shape never exceeds half the viewport.
+    // Leave a small margin for shape geometry (especially diamonds, which
+    // get extra width from their slant).
+    const maxBboxW = maxBboxWidth();
+    const maxLineChars = Math.max(10, Math.floor((maxBboxW - 2 * TEXT_PAD - 40) / CHAR_PX));
+
+    // Pick the smallest n where the wrap actually fits in ≤ n lines.
+    // maxLines=999 keeps wrapText from silently truncating (which would
+    // masquerade as "fits" otherwise).
+    for (let n = 1; n <= 12; n++) {
+      const aspectTarget = Math.ceil(7 * n);            // ~3:1 text aspect → ~4:1 bbox
+      const target = Math.min(maxLineChars, aspectTarget);
       const lines = wrapText(text, target, 999);
       if (lines.length <= n) return lines;
     }
-    return wrapText(text, 60, 999).slice(0, 6);
+    // Pathological: wrap as tight as possible to honour the cap, cap line count.
+    return wrapText(text, maxLineChars, 999).slice(0, 12);
   }
 
   function shapeSize(step) {
@@ -63,24 +85,44 @@
     const longest = lines.reduce((a, b) => (b.length > a.length ? b : a), '');
     const textW = longest.length * CHAR_PX;
     const textH = lines.length * LINE_HEIGHT;
+    const MAX_W = maxBboxWidth();
+
+    // Natural 4:1 sizing.
     let bboxH;
     if (step.type === 'action') {
-      // Pad text rect; respect both height-bound and 4:1 width-bound.
       bboxH = Math.max(textH + 2 * TEXT_PAD, (textW + 2 * TEXT_PAD) / ASPECT);
     } else if (step.type === 'decision') {
-      // Text-rect corner on the ellipse with halfW = ASPECT * halfH:
-      //   (textW/2)² / halfW² + (textH/2)² / halfH² ≤ 1
-      //   halfH ≥ sqrt((textW/ASPECT)² + textH²) / 2
-      //   bboxH = 2*halfH ≥ sqrt((textW/ASPECT)² + textH²)
       bboxH = Math.sqrt((textW / ASPECT) * (textW / ASPECT) + textH * textH) + TEXT_PAD;
     } else { // wait — diamond
-      // Text-rect corner on diamond with halfW = ASPECT * halfH:
-      //   textW/(2*halfW) + textH/(2*halfH) ≤ 1
-      //   → bboxH ≥ (textW/ASPECT + textH)
       bboxH = (textW / ASPECT + textH) + TEXT_PAD;
     }
     bboxH = Math.max(MIN_BBOX_H, bboxH);
-    const bboxW = bboxH * ASPECT;
+    let bboxW = bboxH * ASPECT;
+
+    // Cap width at half the viewport. If exceeded, lock the width and recompute
+    // height so the text still fits inside the shape outline — even if that
+    // means the shape ends up taller than the 4:1 ideal.
+    if (bboxW > MAX_W) {
+      bboxW = MAX_W;
+      if (step.type === 'action') {
+        bboxH = Math.max(textH + 2 * TEXT_PAD, MIN_BBOX_H);
+      } else if (step.type === 'decision') {
+        // Ellipse: (textW/bboxW)² + (textH/bboxH)² ≤ 1
+        const ratio = textW / bboxW;
+        const denom = 1 - ratio * ratio;
+        bboxH = (denom > 0.01)
+          ? textH / Math.sqrt(denom) + TEXT_PAD
+          : (textH * 2.5 + TEXT_PAD);
+      } else { // wait — diamond
+        // |textW|/bboxW + |textH|/bboxH ≤ 1
+        const ratio = textW / bboxW;
+        bboxH = (ratio < 0.95)
+          ? textH / (1 - ratio) + TEXT_PAD
+          : (textH * 3 + TEXT_PAD);
+      }
+      bboxH = Math.max(MIN_BBOX_H, bboxH);
+    }
+
     return { w: bboxW, h: bboxH, lines };
   }
 
@@ -318,6 +360,15 @@
       return;
     }
 
+    // Handle: edit label (⋯ button)
+    if (target.classList && target.classList.contains('edit-handle')) {
+      e.preventDefault();
+      e.stopPropagation();
+      const stepId = nodeGroup.getAttribute('data-step-id');
+      editShapeLabel(stepId);
+      return;
+    }
+
     // Edge click — select it.
     const edgeGroup = target.closest && target.closest('.edge-group');
     if (edgeGroup) {
@@ -329,14 +380,14 @@
       return;
     }
 
-    // Click an end-node — start moving it.
+    // Click an end-node — set up a potential move.
     const endNodeGroup = target.closest && target.closest('.end-node-group');
     if (endNodeGroup) {
       const pt = svgPoint(e);
       cv.drag = {
-        kind: 'move-end',
-        startX: cv.workflow.endPosition.x,
-        startY: cv.workflow.endPosition.y,
+        kind: 'move-end-candidate',
+        startClientX: e.clientX,
+        startClientY: e.clientY,
         offX: pt.x - cv.workflow.endPosition.x,
         offY: pt.y - cv.workflow.endPosition.y,
       };
@@ -346,7 +397,9 @@
       return;
     }
 
-    // Node body click → select and start move.
+    // Node body click → select, set up a *potential* move drag. The drag
+    // only actually moves the shape once the mouse crosses the threshold —
+    // so a plain click (or double-click) doesn't accidentally nudge it.
     if (nodeGroup) {
       const stepId = nodeGroup.getAttribute('data-step-id');
       const step = stepById(stepId);
@@ -355,8 +408,10 @@
       cv.selectedEdge = null;
       const pt = svgPoint(e);
       cv.drag = {
-        kind: 'move',
+        kind: 'move-candidate',
         stepId,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
         offX: pt.x - step.position.x,
         offY: pt.y - step.position.y,
         moved: false,
@@ -374,6 +429,23 @@
   function onSvgMouseMove(e) {
     if (!cv.drag) return;
     const pt = svgPoint(e);
+
+    // Promote a "candidate" drag to a real drag once the pointer has moved
+    // past the threshold. Below that, we treat the gesture as a click and
+    // leave the shape in place.
+    if (cv.drag.kind === 'move-candidate') {
+      const dx = e.clientX - cv.drag.startClientX;
+      const dy = e.clientY - cv.drag.startClientY;
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+      cv.drag.kind = 'move';
+    }
+    if (cv.drag.kind === 'move-end-candidate') {
+      const dx = e.clientX - cv.drag.startClientX;
+      const dy = e.clientY - cv.drag.startClientY;
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+      cv.drag.kind = 'move-end';
+    }
+
     if (cv.drag.kind === 'move') {
       const step = stepById(cv.drag.stepId);
       if (!step) return;
@@ -409,8 +481,11 @@
         }
       }
     }
+    // Candidate drags that never crossed the threshold leave the shape in
+    // place — no need to re-render (selection is already shown).
+    const wasCandidate = cv.drag.kind === 'move-candidate' || cv.drag.kind === 'move-end-candidate';
     cv.drag = null;
-    render();
+    if (!wasCandidate) render();
     cv.onChange();
   }
 
@@ -877,6 +952,24 @@
     delT.setAttribute('y', String(delY + 4));
     delT.textContent = '✕';
     g.appendChild(delT);
+
+    // Edit-label "⋯" handle sits just below the delete handle so each shape
+    // has a discoverable click target for editing its text (without having
+    // to double-click, which used to fight with the drag-to-move behaviour).
+    const editX = delX;
+    const editY = delY + 22;
+    const editHandle = document.createElementNS(SVG_NS, 'circle');
+    editHandle.setAttribute('class', 'edit-handle');
+    editHandle.setAttribute('cx', String(editX));
+    editHandle.setAttribute('cy', String(editY));
+    editHandle.setAttribute('r', '8');
+    g.appendChild(editHandle);
+    const editT = document.createElementNS(SVG_NS, 'text');
+    editT.setAttribute('class', 'edit-handle-text');
+    editT.setAttribute('x', String(editX));
+    editT.setAttribute('y', String(editY + 5));
+    editT.textContent = '⋯';
+    g.appendChild(editT);
 
     // Double-click label → inline edit.
     labelG.addEventListener('dblclick', (e) => {

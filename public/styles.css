@@ -1032,6 +1032,31 @@ input.input-error, textarea.input-error {
 .canvas-svg .node-group:hover .delete-handle-text,
 .canvas-svg .node-group.selected .delete-handle-text { opacity: 1; }
 
+/* Edit label "⋯" handle, sits just below the delete "✕" handle. */
+.canvas-svg .edit-handle {
+  fill: white;
+  stroke: var(--active);
+  stroke-width: 1.5;
+  cursor: pointer;
+  opacity: 0;
+}
+.canvas-svg .edit-handle:hover { fill: var(--active); }
+.canvas-svg .node-group:hover .edit-handle,
+.canvas-svg .node-group.selected .edit-handle { opacity: 1; }
+
+.canvas-svg .edit-handle-text {
+  fill: var(--active);
+  font-size: 14px;
+  font-weight: 700;
+  text-anchor: middle;
+  pointer-events: none;
+  opacity: 0;
+}
+.canvas-svg .node-group:hover .edit-handle-text,
+.canvas-svg .node-group.selected .edit-handle-text { opacity: 1; }
+.canvas-svg .edit-handle:hover + .edit-handle-text,
+.canvas-svg .node-group .edit-handle:hover ~ .edit-handle-text { fill: white; }
+
 .canvas-svg .edge-path {
   fill: none;
   stroke: #6b7280;
@@ -1121,7 +1146,8 @@ input.input-error, textarea.input-error {
   padding: 6px 8px;
   font-size: 13px;
   box-shadow: 0 4px 14px rgba(0,0,0,0.15);
-  min-width: 200px;
+  width: 360px;
+  max-width: 50vw;
 }
 
 /* When the canvas tab is active, hide the preview pane and let the editor pane span the row. */
