@@ -1009,6 +1009,18 @@ input.input-error, textarea.input-error {
 .canvas-svg .node-shape.decision { fill: #fef3c7; stroke: #d97706; }
 .canvas-svg .node-shape.wait     { fill: #f3e8ff; stroke: #7c3aed; }
 
+/* "Start" marker — the first action or decision reachable from the workflow's
+   entry uses the same green palette as the END node so users can spot the
+   beginning at a glance. Higher specificity overrides the per-type colours
+   above without !important. */
+.canvas-svg .node-shape.action.start,
+.canvas-svg .node-shape.decision.start {
+  fill: white;
+  stroke: var(--done);
+  stroke-width: 2.5;
+}
+.canvas-svg .node-group.start .node-type-tag { fill: var(--done); }
+
 .canvas-svg .node-id {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 10.5px;

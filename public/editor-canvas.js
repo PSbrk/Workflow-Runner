@@ -828,6 +828,40 @@
   // -------------------- Geometry helpers --------------------
   function stepById(id) { return cv.workflow.steps.find((s) => s && s.id === id) || null; }
 
+  // The "start" step for visual marking purposes: walk from steps[0] through
+  // any leading wait steps and return the first action/decision encountered.
+  // (Waits are pass-through in the engine and aren't where the user starts
+  // interacting.) Returns null if no action/decision is reachable from the
+  // entry without crossing a decision branch.
+  function firstActionOrDecisionId() {
+    const wf = cv.workflow;
+    if (!wf || !Array.isArray(wf.steps) || wf.steps.length === 0) return null;
+    const byId = Object.create(null);
+    const indexById = Object.create(null);
+    wf.steps.forEach((s, i) => { if (s && s.id) { byId[s.id] = s; indexById[s.id] = i; } });
+
+    function singleNext(id) {
+      const step = byId[id];
+      if (!step) return null;
+      if (step.type === 'decision') return null;
+      if (Object.prototype.hasOwnProperty.call(step, 'next') && step.next !== undefined) return step.next;
+      const idx = indexById[id];
+      if (idx + 1 < wf.steps.length) return wf.steps[idx + 1].id;
+      return 'end';
+    }
+
+    const visited = new Set();
+    let cur = wf.steps[0].id;
+    while (cur && cur !== 'end' && !visited.has(cur)) {
+      visited.add(cur);
+      const step = byId[cur];
+      if (!step) return null;
+      if (step.type === 'action' || step.type === 'decision') return cur;
+      cur = singleNext(cur);
+    }
+    return null;
+  }
+
   function shapeEdgePoint(step, towardX, towardY) {
     const type = step.id === '__end__' ? 'end' : step.type;
     const cx = step.position ? step.position.x : (step._endX || 0);
@@ -878,9 +912,10 @@
     renderEdges(layer);
 
     // Shapes (steps).
+    const startId = firstActionOrDecisionId();
     for (const step of wf.steps) {
       if (!step || !step.position) continue;
-      renderShape(layer, step);
+      renderShape(layer, step, startId);
     }
 
     // End node.
@@ -918,9 +953,15 @@
     applyZoom();
   }
 
-  function renderShape(layer, step) {
+  function renderShape(layer, step, startId) {
+    const isStart = step.id === startId;
     const g = document.createElementNS(SVG_NS, 'g');
-    g.setAttribute('class', 'node-group' + (cv.selectedNode === step.id ? ' selected' : '') + (cv.drag && cv.drag.kind === 'move' && cv.drag.stepId === step.id ? ' dragging' : ''));
+    g.setAttribute('class',
+      'node-group'
+      + (cv.selectedNode === step.id ? ' selected' : '')
+      + (cv.drag && cv.drag.kind === 'move' && cv.drag.stepId === step.id ? ' dragging' : '')
+      + (isStart ? ' start' : '')
+    );
     g.setAttribute('data-step-id', step.id);
     g.setAttribute('transform', `translate(${step.position.x}, ${step.position.y})`);
 
@@ -948,7 +989,7 @@
       const points = `0,${-halfH} ${halfW},0 0,${halfH} ${-halfW},0`;
       shapeEl.setAttribute('points', points);
     }
-    shapeEl.setAttribute('class', 'node-shape ' + step.type);
+    shapeEl.setAttribute('class', 'node-shape ' + step.type + (isStart ? ' start' : ''));
     g.appendChild(shapeEl);
 
     // Type tag — outside the shape, top-left, so it never collides with the label.
