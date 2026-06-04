@@ -1011,6 +1011,23 @@ input.input-error, textarea.input-error {
 .canvas-svg .edge-group.selected .edge-path { stroke: var(--active); stroke-width: 2.5; }
 .canvas-svg .edge-group:hover .edge-path { stroke: var(--active); }
 
+.canvas-svg .edge-arrowhead {
+  fill: #6b7280;
+  stroke: none;
+  pointer-events: none;
+}
+.canvas-svg .edge-group.selected .edge-arrowhead,
+.canvas-svg .edge-group:hover .edge-arrowhead { fill: var(--active); }
+
+.canvas-svg .edge-endpoint {
+  fill: white;
+  stroke: #6b7280;
+  stroke-width: 2;
+  pointer-events: none;
+}
+.canvas-svg .edge-group.selected .edge-endpoint,
+.canvas-svg .edge-group:hover .edge-endpoint { stroke: var(--active); }
+
 .canvas-svg .edge-temp {
   fill: none;
   stroke: var(--active);
@@ -1018,6 +1035,8 @@ input.input-error, textarea.input-error {
   stroke-dasharray: 6 4;
   pointer-events: none;
 }
+.canvas-svg .edge-temp-group .edge-arrowhead { fill: var(--active); }
+.canvas-svg .edge-temp-group .edge-endpoint  { fill: white; stroke: var(--active); }
 
 .canvas-svg .edge-label-bg {
   fill: white;

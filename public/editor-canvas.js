@@ -26,12 +26,74 @@
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 
-  const SHAPE = {
-    action:   { w: 180, h: 80,  half: { w: 90, h: 40 } },
-    decision: { w: 150, h: 150, half: { w: 75, h: 75 } },
-    wait:     { w: 140, h: 140, half: { w: 70, h: 70 } },
-    end:      { w: 90,  h: 40,  half: { w: 45, h: 20 } },
-  };
+  // Sizing model: every shape's bounding box is 4:1 (width:height). The text
+  // wraps to roughly that ratio so the bounding box grows uniformly with the
+  // label length. Each shape type computes its bbox so the inscribed text
+  // rectangle fits entirely inside the visible outline:
+  //   - action (rounded rect): text fits trivially with padding.
+  //   - decision (ellipse 4:1): text-rect corners must satisfy the ellipse equation.
+  //   - wait (diamond 4:1):    text-rect corners must satisfy |x|/halfW + |y|/halfH ≤ 1.
+  const CHAR_PX     = 7;     // approx avg character width at 13px font
+  const LINE_HEIGHT = 16;    // line spacing
+  const TEXT_PAD    = 12;    // visual breathing room around text
+  const MIN_BBOX_H  = 56;    // smallest a shape will ever get
+  const ASPECT      = 4;     // width:height target
+  const END_SIZE    = { w: 100, h: 44, half: { w: 50, h: 22 } };
+
+  function wrapForType(label) {
+    const text = (label || '').trim() || '(double-click to edit)';
+    // Try line counts 1..6, picking the smallest one that fits the text
+    // wrapped to ~7n characters per line (so total text aspect is ~3:1, which
+    // becomes ~4:1 after padding). maxLines=999 keeps wrapText from
+    // truncating — we want the *natural* line count to test the fit.
+    for (let n = 1; n <= 6; n++) {
+      const target = Math.ceil(7 * n);
+      const lines = wrapText(text, target, 999);
+      if (lines.length <= n) return lines;
+    }
+    return wrapText(text, 60, 999).slice(0, 6);
+  }
+
+  function shapeSize(step) {
+    if (!step) return { w: 160, h: 40, lines: [''] };
+    if (step.type === 'end' || step.id === '__end__') {
+      return { w: END_SIZE.w, h: END_SIZE.h, lines: ['END'] };
+    }
+    const lines = wrapForType(step.label);
+    const longest = lines.reduce((a, b) => (b.length > a.length ? b : a), '');
+    const textW = longest.length * CHAR_PX;
+    const textH = lines.length * LINE_HEIGHT;
+    let bboxH;
+    if (step.type === 'action') {
+      // Pad text rect; respect both height-bound and 4:1 width-bound.
+      bboxH = Math.max(textH + 2 * TEXT_PAD, (textW + 2 * TEXT_PAD) / ASPECT);
+    } else if (step.type === 'decision') {
+      // Text-rect corner on the ellipse with halfW = ASPECT * halfH:
+      //   (textW/2)² / halfW² + (textH/2)² / halfH² ≤ 1
+      //   halfH ≥ sqrt((textW/ASPECT)² + textH²) / 2
+      //   bboxH = 2*halfH ≥ sqrt((textW/ASPECT)² + textH²)
+      bboxH = Math.sqrt((textW / ASPECT) * (textW / ASPECT) + textH * textH) + TEXT_PAD;
+    } else { // wait — diamond
+      // Text-rect corner on diamond with halfW = ASPECT * halfH:
+      //   textW/(2*halfW) + textH/(2*halfH) ≤ 1
+      //   → bboxH ≥ (textW/ASPECT + textH)
+      bboxH = (textW / ASPECT + textH) + TEXT_PAD;
+    }
+    bboxH = Math.max(MIN_BBOX_H, bboxH);
+    const bboxW = bboxH * ASPECT;
+    return { w: bboxW, h: bboxH, lines };
+  }
+
+  // Cache shape sizes during a single render pass — multiple call sites need them.
+  let _sizeCache = null;
+  function sizeOf(step) {
+    if (!_sizeCache) _sizeCache = new Map();
+    const key = step && (step.id || '') + ':' + (step && step.type) + ':' + (step && (step.label || ''));
+    let v = _sizeCache.get(key);
+    if (!v) { v = shapeSize(step); _sizeCache.set(key, v); }
+    return v;
+  }
+  function clearSizeCache() { _sizeCache = null; }
 
   const cv = {
     workflow:    null,
@@ -588,34 +650,40 @@
     const type = step.id === '__end__' ? 'end' : step.type;
     const cx = step.position ? step.position.x : (step._endX || 0);
     const cy = step.position ? step.position.y : (step._endY || 0);
-    const sz = SHAPE[type] || SHAPE.action;
+    const sz = sizeOf(step);
+    const halfW = sz.w / 2, halfH = sz.h / 2;
     const dx = towardX - cx;
     const dy = towardY - cy;
     if (dx === 0 && dy === 0) return { x: cx, y: cy };
     if (type === 'decision') {
-      const r = Math.min(sz.half.w, sz.half.h);
-      const len = Math.sqrt(dx * dx + dy * dy);
-      return { x: cx + dx * r / len, y: cy + dy * r / len };
+      // Ellipse: point on (x/halfW)² + (y/halfH)² = 1 along ray (dx, dy).
+      // t * (dx/halfW)² + t * (dy/halfH)² = 1  →  t = 1 / ((dx/halfW)² + (dy/halfH)²)
+      const a = dx / halfW;
+      const b = dy / halfH;
+      const t = 1 / Math.sqrt(a * a + b * b);
+      return { x: cx + dx * t, y: cy + dy * t };
     }
     if (type === 'wait') {
       // Diamond: |x|/halfW + |y|/halfH = 1
-      const m = Math.abs(dx) / sz.half.w + Math.abs(dy) / sz.half.h;
+      const m = Math.abs(dx) / halfW + Math.abs(dy) / halfH;
       return { x: cx + dx / m, y: cy + dy / m };
     }
     // Rect (action / end)
-    const m = Math.max(Math.abs(dx) / sz.half.w, Math.abs(dy) / sz.half.h);
+    const m = Math.max(Math.abs(dx) / halfW, Math.abs(dy) / halfH);
     return { x: cx + dx / m, y: cy + dy / m };
   }
 
   function getConnHandleCenter(step) {
-    const sz = SHAPE[step.type] || SHAPE.action;
-    return { x: step.position.x, y: step.position.y + sz.half.h + 16 };
+    const sz = sizeOf(step);
+    return { x: step.position.x, y: step.position.y + sz.h / 2 + 16 };
   }
 
   // -------------------- Rendering --------------------
   function render() {
     // Clear all but <defs>.
     Array.from(cv.svg.querySelectorAll('g, path.edge-temp')).forEach((n) => n.remove());
+    // Sizes depend on labels; recompute on every render.
+    clearSizeCache();
 
     if (!cv.workflow || !Array.isArray(cv.workflow.steps)) return;
 
@@ -651,13 +719,14 @@
     let maxX = 600, maxY = 500;
     for (const s of cv.workflow.steps) {
       if (s && s.position) {
-        maxX = Math.max(maxX, s.position.x + 200);
-        maxY = Math.max(maxY, s.position.y + 150);
+        const sz = sizeOf(s);
+        maxX = Math.max(maxX, s.position.x + sz.w / 2 + 80);
+        maxY = Math.max(maxY, s.position.y + sz.h / 2 + 60);
       }
     }
     if (cv.workflow.endPosition) {
-      maxX = Math.max(maxX, cv.workflow.endPosition.x + 200);
-      maxY = Math.max(maxY, cv.workflow.endPosition.y + 100);
+      maxX = Math.max(maxX, cv.workflow.endPosition.x + END_SIZE.half.w + 80);
+      maxY = Math.max(maxY, cv.workflow.endPosition.y + END_SIZE.half.h + 60);
     }
     cv.svg.setAttribute('viewBox', `0 0 ${maxX} ${maxY}`);
     cv.svg.style.minHeight = Math.min(maxY, 800) + 'px';
@@ -669,66 +738,69 @@
     g.setAttribute('data-step-id', step.id);
     g.setAttribute('transform', `translate(${step.position.x}, ${step.position.y})`);
 
-    const sz = SHAPE[step.type] || SHAPE.action;
+    const sz = sizeOf(step);
+    const halfW = sz.w / 2, halfH = sz.h / 2;
 
     let shapeEl;
     if (step.type === 'action') {
       shapeEl = document.createElementNS(SVG_NS, 'rect');
-      shapeEl.setAttribute('x', String(-sz.half.w));
-      shapeEl.setAttribute('y', String(-sz.half.h));
+      shapeEl.setAttribute('x', String(-halfW));
+      shapeEl.setAttribute('y', String(-halfH));
       shapeEl.setAttribute('width',  String(sz.w));
       shapeEl.setAttribute('height', String(sz.h));
       shapeEl.setAttribute('rx', '10');
     } else if (step.type === 'decision') {
-      shapeEl = document.createElementNS(SVG_NS, 'circle');
+      // Ellipse, 4:1.
+      shapeEl = document.createElementNS(SVG_NS, 'ellipse');
       shapeEl.setAttribute('cx', '0');
       shapeEl.setAttribute('cy', '0');
-      shapeEl.setAttribute('r', String(Math.min(sz.half.w, sz.half.h)));
+      shapeEl.setAttribute('rx', String(halfW));
+      shapeEl.setAttribute('ry', String(halfH));
     } else if (step.type === 'wait') {
+      // Diamond, 4:1.
       shapeEl = document.createElementNS(SVG_NS, 'polygon');
-      const points = `0,${-sz.half.h} ${sz.half.w},0 0,${sz.half.h} ${-sz.half.w},0`;
+      const points = `0,${-halfH} ${halfW},0 0,${halfH} ${-halfW},0`;
       shapeEl.setAttribute('points', points);
     }
     shapeEl.setAttribute('class', 'node-shape ' + step.type);
     g.appendChild(shapeEl);
 
-    // Type tag (top).
+    // Type tag — outside the shape, top-left, so it never collides with the label.
     const tag = document.createElementNS(SVG_NS, 'text');
     tag.setAttribute('class', 'node-type-tag');
-    tag.setAttribute('x', '0');
-    tag.setAttribute('y', String(-sz.half.h + 16));
-    tag.setAttribute('text-anchor', 'middle');
+    tag.setAttribute('x', String(-halfW));
+    tag.setAttribute('y', String(-halfH - 6));
+    tag.setAttribute('text-anchor', 'start');
     tag.textContent = step.type.toUpperCase();
     g.appendChild(tag);
 
-    // ID (top-right corner-ish).
+    // ID — outside, top-right, same idea.
     const idText = document.createElementNS(SVG_NS, 'text');
     idText.setAttribute('class', 'node-id');
-    idText.setAttribute('x', '0');
-    idText.setAttribute('y', String(-sz.half.h + 28));
-    idText.setAttribute('text-anchor', 'middle');
+    idText.setAttribute('x', String(halfW));
+    idText.setAttribute('y', String(-halfH - 6));
+    idText.setAttribute('text-anchor', 'end');
     idText.textContent = step.id;
     g.appendChild(idText);
 
-    // Label (centered, wrapped).
-    const lbl = step.label || '(click to set label)';
-    const wrapped = wrapText(lbl, step.type === 'wait' ? 14 : 20, 3);
+    // Label — centered, wrapped to fit the shape's inscribed text area.
     const labelG = document.createElementNS(SVG_NS, 'g');
     labelG.setAttribute('class', 'node-label-group');
-    const baseY = step.type === 'decision' ? 0 : (step.type === 'wait' ? -2 : 6);
-    wrapped.forEach((line, i) => {
+    const lines = sz.lines || [step.label || '(double-click to edit)'];
+    lines.forEach((line, i) => {
       const t = document.createElementNS(SVG_NS, 'text');
       t.setAttribute('class', 'node-label');
       t.setAttribute('x', '0');
-      t.setAttribute('y', String(baseY + (i - (wrapped.length - 1) / 2) * 15));
+      t.setAttribute('y', String((i - (lines.length - 1) / 2) * LINE_HEIGHT + 4));
       t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('dominant-baseline', 'middle');
       t.textContent = line;
       labelG.appendChild(t);
     });
     g.appendChild(labelG);
 
     // Connection "+" handle below the shape.
-    const handleY = sz.half.h + 16;
+    const handleY = halfH + 16;
     const handle = document.createElementNS(SVG_NS, 'circle');
     handle.setAttribute('class', 'conn-handle');
     handle.setAttribute('cx', '0');
@@ -742,9 +814,9 @@
     handleT.textContent = '+';
     g.appendChild(handleT);
 
-    // Delete "✕" handle top-right.
-    const delX = sz.half.w + 6;
-    const delY = -sz.half.h - 6;
+    // Delete "✕" handle top-right (outside shape).
+    const delX = halfW + 14;
+    const delY = -halfH - 14;
     const delHandle = document.createElementNS(SVG_NS, 'circle');
     delHandle.setAttribute('class', 'delete-handle');
     delHandle.setAttribute('cx', String(delX));
@@ -785,10 +857,10 @@
     g.setAttribute('transform', `translate(${wf.endPosition.x}, ${wf.endPosition.y})`);
 
     const rect = document.createElementNS(SVG_NS, 'rect');
-    rect.setAttribute('x', String(-SHAPE.end.half.w));
-    rect.setAttribute('y', String(-SHAPE.end.half.h));
-    rect.setAttribute('width',  String(SHAPE.end.w));
-    rect.setAttribute('height', String(SHAPE.end.h));
+    rect.setAttribute('x', String(-END_SIZE.half.w));
+    rect.setAttribute('y', String(-END_SIZE.half.h));
+    rect.setAttribute('width',  String(END_SIZE.w));
+    rect.setAttribute('height', String(END_SIZE.h));
     rect.setAttribute('rx', '20');
     rect.setAttribute('class', 'end-node-shape');
     g.appendChild(rect);
@@ -861,19 +933,32 @@
     const path = document.createElementNS(SVG_NS, 'path');
     path.setAttribute('class', 'edge-path');
     path.setAttribute('d', d);
-    path.setAttribute('marker-end', 'url(#cv-arrow)');
     g.appendChild(path);
 
-    // Label (decision options).
+    // Directional arrow at the path midpoint + small dot at the target end.
+    decorateEdgePath(g, path, targetEdge);
+
+    // Label (decision options) — positioned slightly off the midpoint so it
+    // doesn't sit on top of the arrowhead.
     if (label) {
+      // Compute a label position offset perpendicular to the tangent at the midpoint.
+      const len = path.getTotalLength();
+      const mid = path.getPointAtLength(len / 2);
+      const a = path.getPointAtLength(Math.max(0, len / 2 - 0.5));
+      const b = path.getPointAtLength(Math.min(len, len / 2 + 0.5));
+      const tx = b.x - a.x, ty = b.y - a.y;
+      const tlen = Math.sqrt(tx * tx + ty * ty) || 1;
+      const nx = -ty / tlen, ny = tx / tlen; // perpendicular unit vector
+      const lx = mid.x + nx * 14;
+      const ly = mid.y + ny * 14;
+
       const lblText = document.createElementNS(SVG_NS, 'text');
       lblText.setAttribute('class', 'edge-label-text');
-      lblText.setAttribute('x', String((sourceEdge.x + targetEdge.x) / 2));
-      lblText.setAttribute('y', String((sourceEdge.y + targetEdge.y) / 2));
+      lblText.setAttribute('x', String(lx));
+      lblText.setAttribute('y', String(ly));
       lblText.setAttribute('text-anchor', 'middle');
       lblText.setAttribute('dominant-baseline', 'middle');
       lblText.textContent = label.length > 22 ? label.slice(0, 21) + '…' : label;
-      // Background rect.
       g.appendChild(lblText);
       const bb = lblText.getBBox();
       const bg = document.createElementNS(SVG_NS, 'rect');
@@ -885,16 +970,41 @@
       bg.setAttribute('rx', '4');
       g.insertBefore(bg, lblText);
 
-      // Double-click label → edit.
       const editHandler = (e) => { e.stopPropagation(); editEdgeLabel(source.id, idx); };
       lblText.addEventListener('dblclick', editHandler);
       bg.addEventListener('dblclick', editHandler);
     }
   }
 
+  // Place a midpoint arrowhead (oriented along the tangent) + a node dot at
+  // the path's end point. Path must already be in the DOM so getPointAtLength
+  // works.
+  function decorateEdgePath(g, pathEl, endPoint) {
+    let len = 0;
+    try { len = pathEl.getTotalLength(); } catch (_) { return; }
+    if (!len) return;
+    const mid    = pathEl.getPointAtLength(len / 2);
+    const before = pathEl.getPointAtLength(Math.max(0, len / 2 - 0.5));
+    const after  = pathEl.getPointAtLength(Math.min(len, len / 2 + 0.5));
+    const angle  = Math.atan2(after.y - before.y, after.x - before.x) * 180 / Math.PI;
+
+    const arrow = document.createElementNS(SVG_NS, 'polygon');
+    arrow.setAttribute('class', 'edge-arrowhead');
+    arrow.setAttribute('points', '-6,-5 8,0 -6,5');
+    arrow.setAttribute('transform', `translate(${mid.x},${mid.y}) rotate(${angle})`);
+    g.appendChild(arrow);
+
+    const dot = document.createElementNS(SVG_NS, 'circle');
+    dot.setAttribute('class', 'edge-endpoint');
+    dot.setAttribute('cx', String(endPoint.x));
+    dot.setAttribute('cy', String(endPoint.y));
+    dot.setAttribute('r', '5');
+    g.appendChild(dot);
+  }
+
   function renderTempEdge() {
-    // Remove old temp.
-    const old = cv.svg.querySelector('.edge-temp');
+    // Remove any prior temp group.
+    const old = cv.svg.querySelector('.edge-temp-group');
     if (old) old.remove();
     if (!cv.drag || cv.drag.kind !== 'connect') return;
     const source = stepById(cv.drag.stepId);
@@ -902,6 +1012,11 @@
     const targetX = cv.drag.currentX;
     const targetY = cv.drag.currentY;
     const sourceEdge = shapeEdgePoint(source, targetX, targetY);
+
+    const g = document.createElementNS(SVG_NS, 'g');
+    g.setAttribute('class', 'edge-temp-group');
+    cv.svg.appendChild(g);
+
     const path = document.createElementNS(SVG_NS, 'path');
     path.setAttribute('class', 'edge-temp');
     const dx = targetX - sourceEdge.x;
@@ -910,8 +1025,9 @@
     const c = Math.min(60, dist * 0.4);
     const d = `M ${sourceEdge.x} ${sourceEdge.y} C ${sourceEdge.x} ${sourceEdge.y + c}, ${targetX} ${targetY - c}, ${targetX} ${targetY}`;
     path.setAttribute('d', d);
-    path.setAttribute('marker-end', 'url(#cv-arrow)');
-    cv.svg.appendChild(path);
+    g.appendChild(path);
+
+    decorateEdgePath(g, path, { x: targetX, y: targetY });
   }
 
   function wrapText(text, maxChars, maxLines) {
