@@ -70,15 +70,23 @@
                 <span class="shape-icon-mini sm-wait"></span> Wait
               </button>
               <span class="toolbar-spacer"></span>
-              <span class="toolbar-hint">Drag shapes to move • drag the <strong>+</strong> handle to another shape to connect</span>
+              <span class="toolbar-hint">Drag to move • drag <strong>+</strong> to another shape to connect</span>
+              <div class="canvas-zoom">
+                <button id="canvas-zoom-out" class="zoom-step" type="button" title="Zoom out">−</button>
+                <input id="canvas-zoom" type="range" min="25" max="200" step="5" value="100" aria-label="Zoom">
+                <button id="canvas-zoom-in"  class="zoom-step" type="button" title="Zoom in">+</button>
+                <button id="canvas-zoom-reset" class="zoom-pct" type="button" title="Reset to 100%">100%</button>
+              </div>
             </div>
-            <svg id="canvas-svg" class="canvas-svg" tabindex="0">
-              <defs>
-                <marker id="cv-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
-                  <path d="M0,0 L0,6 L9,3 z" fill="#6b7280"/>
-                </marker>
-              </defs>
-            </svg>
+            <div class="canvas-viewport">
+              <svg id="canvas-svg" class="canvas-svg" tabindex="0">
+                <defs>
+                  <marker id="cv-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                    <path d="M0,0 L0,6 L9,3 z" fill="#6b7280"/>
+                  </marker>
+                </defs>
+              </svg>
+            </div>
             <div id="canvas-validation" class="ed-validation canvas-validation"></div>
           </div>
 

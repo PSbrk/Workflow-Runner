@@ -898,10 +898,16 @@ input.input-error, textarea.input-error {
 .toolbar-spacer { flex: 1; }
 .toolbar-hint   { font-size: 11.5px; color: var(--muted); }
 
-.canvas-svg {
+.canvas-viewport {
   flex: 1;
-  width: 100%;
-  height: 560px;
+  overflow: auto;
+  background: #fafbfc;
+  min-height: 560px;
+  position: relative;
+}
+
+.canvas-svg {
+  display: block;
   background:
     linear-gradient(to right, #eef0f3 1px, transparent 1px) 0 0 / 24px 24px,
     linear-gradient(to bottom, #eef0f3 1px, transparent 1px) 0 0 / 24px 24px,
@@ -909,7 +915,37 @@ input.input-error, textarea.input-error {
   cursor: default;
   outline: none;
   user-select: none;
+  /* width and height are set in JS as world-w * zoom / world-h * zoom so the
+     viewport scrolls when content exceeds the visible area. */
 }
+
+.canvas-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 10px;
+  border-left: 1px solid #e5e7eb;
+}
+.canvas-zoom input[type="range"] {
+  width: 110px;
+  cursor: pointer;
+  accent-color: var(--active);
+}
+.canvas-zoom .zoom-step,
+.canvas-zoom .zoom-pct {
+  padding: 3px 8px;
+  border: 1px solid #d1d5db;
+  background: white;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  line-height: 1;
+  min-width: 26px;
+}
+.canvas-zoom .zoom-step:hover,
+.canvas-zoom .zoom-pct:hover { background: #f3f4f6; }
+.canvas-zoom .zoom-pct { min-width: 48px; }
 
 .canvas-svg .node-shape {
   fill: white;

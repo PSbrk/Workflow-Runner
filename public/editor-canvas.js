@@ -108,6 +108,9 @@
     drag:        null,         // { kind, ... }
     bound:       false,
     handlers:    null,         // bound handlers for removal
+    zoom:        1.0,          // 1.0 = 100%, range [0.25, 2.0]
+    worldW:      600,
+    worldH:      500,
   };
 
   // -------------------- Lifecycle --------------------
@@ -123,7 +126,9 @@
     ensurePositions();
     syncMetaInputs();
     bindHandlers();
+    cv.zoom = 1.0;
     render();
+    setZoom(1.0); // Sync slider/badge to reset state.
   }
 
   function destroy() {
@@ -183,6 +188,10 @@
       docKey:     onDocKeyDown,
       meta:       onMetaInput,
       paletteClk: onPaletteClick,
+      zoomInput:  (e) => setZoom(parseInt(e.target.value, 10) / 100),
+      zoomIn:     () => setZoom(cv.zoom + 0.1),
+      zoomOut:    () => setZoom(cv.zoom - 0.1),
+      zoomReset:  () => setZoom(1.0),
     };
     cv.svg.addEventListener('mousedown', cv.handlers.svgDown);
     cv.svg.addEventListener('mousemove', cv.handlers.svgMove);
@@ -194,6 +203,15 @@
     cv.paletteEl.querySelectorAll('[data-shape]').forEach((b) => {
       b.addEventListener('click', cv.handlers.paletteClk);
     });
+    // Zoom widget.
+    const zSlider = document.getElementById('canvas-zoom');
+    const zIn     = document.getElementById('canvas-zoom-in');
+    const zOut    = document.getElementById('canvas-zoom-out');
+    const zReset  = document.getElementById('canvas-zoom-reset');
+    if (zSlider) zSlider.addEventListener('input', cv.handlers.zoomInput);
+    if (zIn)     zIn.addEventListener('click',     cv.handlers.zoomIn);
+    if (zOut)    zOut.addEventListener('click',    cv.handlers.zoomOut);
+    if (zReset)  zReset.addEventListener('click',  cv.handlers.zoomReset);
   }
   function unbindHandlers() {
     if (!cv.bound) return;
@@ -206,7 +224,33 @@
     document.removeEventListener('keydown', cv.handlers.docKey);
     cv.idInput.removeEventListener('input',    cv.handlers.meta);
     cv.titleInput.removeEventListener('input', cv.handlers.meta);
+    const zSlider = document.getElementById('canvas-zoom');
+    const zIn     = document.getElementById('canvas-zoom-in');
+    const zOut    = document.getElementById('canvas-zoom-out');
+    const zReset  = document.getElementById('canvas-zoom-reset');
+    if (zSlider) zSlider.removeEventListener('input', cv.handlers.zoomInput);
+    if (zIn)     zIn.removeEventListener('click',     cv.handlers.zoomIn);
+    if (zOut)    zOut.removeEventListener('click',    cv.handlers.zoomOut);
+    if (zReset)  zReset.removeEventListener('click',  cv.handlers.zoomReset);
     cv.handlers = null;
+  }
+
+  // ---------- Zoom ----------
+  function setZoom(z) {
+    cv.zoom = Math.max(0.25, Math.min(2.0, Number(z) || 1.0));
+    applyZoom();
+    const slider = document.getElementById('canvas-zoom');
+    const reset  = document.getElementById('canvas-zoom-reset');
+    if (slider) slider.value = Math.round(cv.zoom * 100);
+    if (reset)  reset.textContent = Math.round(cv.zoom * 100) + '%';
+  }
+  function applyZoom() {
+    // The viewBox stays at world coords ("0 0 worldW worldH"). We change the
+    // SVG's pixel size to worldW * zoom × worldH * zoom and let the SVG's
+    // viewBox→viewport mapping handle the actual scaling. This keeps
+    // getScreenCTM-based mouse coord conversion correct at any zoom.
+    cv.svg.style.width  = (cv.worldW * cv.zoom) + 'px';
+    cv.svg.style.height = (cv.worldH * cv.zoom) + 'px';
   }
 
   function syncMetaInputs() {
@@ -728,8 +772,12 @@
       maxX = Math.max(maxX, cv.workflow.endPosition.x + END_SIZE.half.w + 80);
       maxY = Math.max(maxY, cv.workflow.endPosition.y + END_SIZE.half.h + 60);
     }
+    cv.worldW = maxX;
+    cv.worldH = maxY;
     cv.svg.setAttribute('viewBox', `0 0 ${maxX} ${maxY}`);
-    cv.svg.style.minHeight = Math.min(maxY, 800) + 'px';
+    // Apply current zoom — SVG pixel size = world * zoom so the surrounding
+    // viewport can scroll when content overflows.
+    applyZoom();
   }
 
   function renderShape(layer, step) {
