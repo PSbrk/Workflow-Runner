@@ -1,0 +1,100 @@
+{
+  "id": "new-request",
+  "title": "New Request Received",
+  "steps": [
+    {
+      "id": "s1",
+      "type": "action",
+      "label": "Received a Work needed or Contractor Onboarding Vendor request.",
+      "position": {
+        "x": 1982.0049438476562,
+        "y": 57.999755859375
+      },
+      "next": "s2"
+    },
+    {
+      "id": "s2",
+      "type": "decision",
+      "label": "Does the work need to happen in the next 24 Hours?",
+      "position": {
+        "x": 1981.506591796875,
+        "y": 153.49838256835938
+      },
+      "options": [
+        {
+          "label": "Yes.",
+          "goto": "s3"
+        },
+        {
+          "label": "No.",
+          "goto": "s4"
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "type": "decision",
+      "label": "What is the estimated cost?",
+      "position": {
+        "x": 1047.5023193359375,
+        "y": 191.49853515625
+      },
+      "options": [
+        {
+          "label": "Less than $5k.",
+          "goto": "s7"
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "type": "decision",
+      "label": "What type of engagement is this?",
+      "position": {
+        "x": 2965.5111083984375,
+        "y": 169.49844360351562
+      },
+      "options": [
+        {
+          "label": "Proposal with Terms (Contract)",
+          "goto": "s5"
+        },
+        {
+          "label": "Proposal without Terms (Draft)",
+          "goto": "s6"
+        }
+      ]
+    },
+    {
+      "id": "s5",
+      "type": "wait",
+      "label": "PM Collects W-9, COI and Proposal.",
+      "position": {
+        "x": 2330.455078125,
+        "y": 369.4993591308594
+      }
+    },
+    {
+      "id": "s6",
+      "type": "wait",
+      "label": "PM collects W-9, COI and Proposal.",
+      "position": {
+        "x": 2976.4514770507812,
+        "y": 373.4993591308594
+      }
+    },
+    {
+      "id": "s7",
+      "type": "action",
+      "label": "Create a PowerForm.",
+      "position": {
+        "x": 687.6088256835938,
+        "y": 363.49932861328125
+      }
+    }
+  ],
+  "endPosition": {
+    "x": 2100.009246826172,
+    "y": 1948.0094299316406
+  }
+}
