@@ -23,7 +23,9 @@
       </span>
       <button id="edit-btn"    type="button" title="Edit the selected template">Edit</button>
       <button id="reset-btn"   type="button" title="Reset progress on the open instance">Reset</button>
-      <button id="reload-btn"  type="button" title="Re-read workflow files from disk">Reload</button>
+      <button id="import-btn"  type="button" title="Import templates from a JSON file">Import</button>
+      <button id="export-btn"  type="button" title="Export all templates to a JSON file">Export</button>
+      <input id="import-file" type="file" accept=".json,application/json" style="display:none">
     </div>
   </header>
 
@@ -172,6 +174,8 @@
 
   <script src="validator.js"></script>
   <script src="instances.js"></script>
+  <script src="builtin-workflows.js"></script>
+  <script src="templates.js"></script>
   <script src="editor-canvas.js"></script>
   <script src="editor.js"></script>
   <script src="app.js"></script>

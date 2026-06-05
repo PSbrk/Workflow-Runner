@@ -607,14 +607,33 @@
   }
 
   // ---------- Save / Save As / Cancel / Delete ----------
+  // Client-side store version: the on-disk POST /api/workflows is replaced
+  // by a direct WfrTemplates.save() call. The return shape mirrors the old
+  // fetch result so callers don't need to change.
   async function postWorkflow(workflow, originalFile) {
-    const res = await fetch('/api/workflows', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workflow, originalFile }),
-    });
-    const data = await res.json().catch(() => ({}));
-    return { ok: res.ok, status: res.status, data };
+    if (!workflow || !workflow.id || !ID_RE.test(workflow.id)) {
+      return { ok: false, status: 400, data: { error: 'Invalid workflow id.' } };
+    }
+    const newFile = workflow.id + '.json';
+    const existing = WfrTemplates.load(workflow.id);
+    // Collision: refuse to overwrite a different existing template. Saving
+    // back onto the same file (originalFile === newFile) is an update.
+    if (existing && originalFile !== newFile) {
+      return {
+        ok: false, status: 409,
+        data: { error: `A template with id "${workflow.id}" already exists. Choose a different id.` },
+      };
+    }
+    WfrTemplates.save(workflow);
+    // Rename: remove the old entry if the user changed the id.
+    if (originalFile && originalFile !== newFile) {
+      const oldId = originalFile.replace(/\.json$/, '');
+      if (oldId && oldId !== workflow.id) WfrTemplates.remove(oldId);
+    }
+    return {
+      ok: true, status: 200,
+      data: { file: newFile, workflow, validation: validateWorkflow(workflow) },
+    };
   }
 
   let saveStatusTimer = null;
@@ -704,14 +723,11 @@
       return;
     }
     const label = editing.workflow.title || editing.workflow.id;
-    if (!confirm(`Delete "${label}"?\nThis removes ${editing.originalFile} from the workflows/ folder.`)) return;
+    if (!confirm(`Delete "${label}"?\nThis removes it from your browser's saved templates.`)) return;
     try {
-      const res = await fetch('/api/workflows/' + encodeURIComponent(editing.originalFile), { method: 'DELETE' });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        alert('Delete failed: ' + (data.error || ('HTTP ' + res.status)));
-        return;
-      }
+      // Client-side store: remove directly. The originalFile is "<id>.json".
+      const id = editing.originalFile.replace(/\.json$/, '');
+      if (id) WfrTemplates.remove(id);
       editing.workflow = null;
       editing.originalFile = null;
       hide(true);

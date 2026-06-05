@@ -15,7 +15,9 @@ const els = {
   newMenu:        document.getElementById('new-menu'),
   editBtn:        document.getElementById('edit-btn'),
   resetBtn:       document.getElementById('reset-btn'),
-  reloadBtn:      document.getElementById('reload-btn'),
+  importBtn:      document.getElementById('import-btn'),
+  exportBtn:      document.getElementById('export-btn'),
+  importFile:     document.getElementById('import-file'),
   statusBar:      document.getElementById('status-bar'),
   errorsBar:      document.getElementById('errors-bar'),
   warningsBar:    document.getElementById('warnings-bar'),
@@ -47,11 +49,18 @@ let state = null;           // alias of currentInstance (same {trail, choices, c
 init();
 
 async function init() {
+  // Client-side mode: seed the template store from the bundled examples on
+  // first run. Subsequent runs see the user's own templates and never touch
+  // the bundled defaults again.
+  WfrTemplates.bootstrapIfEmpty();
+
   els.select.addEventListener('change', onTemplateSelectChange);
   els.instanceSelect.addEventListener('change', onInstanceSelectChange);
   els.resetBtn.addEventListener('click', onReset);
-  els.reloadBtn.addEventListener('click', () => loadAll());
   els.editBtn.addEventListener('click', onEdit);
+  els.importBtn.addEventListener('click', () => els.importFile.click());
+  els.exportBtn.addEventListener('click', onExportTemplates);
+  els.importFile.addEventListener('change', onImportTemplates);
 
   // "+ New" split button: opens the dropdown menu.
   els.newBtn.addEventListener('click', toggleNewMenu);
@@ -312,55 +321,84 @@ globalThis.WfrApp = {
   // renames/new files from a save) without forcing a selection change or
   // disrupting an open editor.
   refreshSilent: async (preferId) => {
-    try {
-      const res = await fetch('/api/workflows', { cache: 'no-store' });
-      const data = await res.json();
-      const entries = (data.workflows || []).map((entry) => {
-        if (entry.parseError) {
-          return { ...entry, validation: { errors: [{ message: `JSON parse error: ${entry.parseError}` }], warnings: [] } };
-        }
-        return { ...entry, validation: validateWorkflow(entry.workflow) };
-      });
-      allWorkflows = entries;
-      const prevValue = els.select.value;
-      els.select.innerHTML = '';
-      for (const e of entries) {
-        const opt = document.createElement('option');
-        const id = (e.workflow && e.workflow.id) || e.file;
-        const title = (e.workflow && e.workflow.title) || id;
-        opt.value = id;
-        const badge = e.validation.errors.length ? ' ⚠ errors' : (e.validation.warnings.length ? ' ⚠ warnings' : '');
-        opt.textContent = `${title}${badge}`;
-        els.select.appendChild(opt);
-      }
-      const has = (id) => entries.some((e) => e.workflow && e.workflow.id === id);
-      const target = (preferId && has(preferId)) ? preferId
-                  : (prevValue && has(prevValue)) ? prevValue
-                  : (entries[0] && entries[0].workflow && entries[0].workflow.id) || '';
-      els.select.value = target;
-      selectTemplate(target);
-    } catch (e) {
-      // Silent — saving already reported; a manual Reload still works.
+    // Same as loadAll() but skips re-rendering the runner. Used by the editor
+    // after a Save so the picker reflects renames / new files without
+    // disrupting an open editor.
+    const stored = WfrTemplates.listAll();
+    const entries = stored.map((wf) => ({
+      file: (wf.id || 'workflow') + '.json',
+      workflow: wf,
+      validation: validateWorkflow(wf),
+    }));
+    allWorkflows = entries;
+    const prevValue = els.select.value;
+    els.select.innerHTML = '';
+    for (const e of entries) {
+      const opt = document.createElement('option');
+      const id = (e.workflow && e.workflow.id) || e.file;
+      const title = (e.workflow && e.workflow.title) || id;
+      opt.value = id;
+      const badge = e.validation.errors.length ? ' ⚠ errors' : (e.validation.warnings.length ? ' ⚠ warnings' : '');
+      opt.textContent = `${title}${badge}`;
+      els.select.appendChild(opt);
     }
+    const has = (id) => entries.some((e) => e.workflow && e.workflow.id === id);
+    const target = (preferId && has(preferId)) ? preferId
+                : (prevValue && has(prevValue)) ? prevValue
+                : (entries[0] && entries[0].workflow && entries[0].workflow.id) || '';
+    els.select.value = target;
+    selectTemplate(target);
   },
 };
 
-async function loadAll(preferId) {
-  let data;
-  try {
-    const res = await fetch('/api/workflows', { cache: 'no-store' });
-    data = await res.json();
-  } catch (e) {
-    showStatus(`Could not load workflows: ${e.message}`, 'error');
-    return;
-  }
-  const entries = (data.workflows || []).map((entry) => {
-    if (entry.parseError) {
-      return { ...entry, validation: { errors: [{ message: `JSON parse error: ${entry.parseError}` }], warnings: [] } };
+// ---------- Import / Export ----------
+function onExportTemplates() {
+  const payload = WfrTemplates.exportAll();
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `workflow-templates-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function onImportTemplates(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const payload = JSON.parse(reader.result);
+      const result = WfrTemplates.importPayload(payload);
+      const total = result.added + result.replaced;
+      if (total === 0) {
+        alert(`Nothing imported.${result.skipped ? ' ' + result.skipped + ' entries skipped (missing id or steps).' : ''}`);
+      } else {
+        alert(`Imported ${total} template(s) — ${result.added} new, ${result.replaced} replaced${result.skipped ? ', ' + result.skipped + ' skipped' : ''}.`);
+        loadAll();
+      }
+    } catch (err) {
+      alert('Could not parse the file as JSON: ' + err.message);
     }
-    const v = validateWorkflow(entry.workflow);
-    return { ...entry, validation: v };
-  });
+    // Reset the file input so the same file can be picked again later.
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+async function loadAll(preferId) {
+  // Client-side mode: templates live in localStorage via WfrTemplates.
+  // No network call, but kept async so the call-site contract is unchanged.
+  const stored = WfrTemplates.listAll();
+  const entries = stored.map((wf) => ({
+    file: (wf.id || 'workflow') + '.json',
+    workflow: wf,
+    validation: validateWorkflow(wf),
+  }));
   allWorkflows = entries;
 
   // Populate the TEMPLATE selector.

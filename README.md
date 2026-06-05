@@ -32,21 +32,54 @@ Two ways to author a template:
 
 ## Run it
 
-```
-python server.py
-```
+Double-click **`WorkflowRunner.html`** in the project root. (Or open
+`public/index.html` directly — `WorkflowRunner.html` just redirects there.)
+A modern browser (Chrome, Edge, or Firefox) opens the app from disk via
+`file://`. No install, no server, no Python required.
 
-(Or double-click **`start.cmd`** on Windows.)
+The first time you launch, the app seeds its template store with the
+example workflows bundled in `public/builtin-workflows.js`. After that
+everything you create, edit, or delete is your own — the bundled defaults
+are not re-applied on subsequent launches.
 
-That prints a local URL like `http://localhost:5174`. Open it in a modern
-desktop browser. No build step, no dependencies, no network required — just
-the Python 3 stdlib.
+> **Why no server?** Earlier versions of this app shipped with a small
+> Python HTTP server (`server.py`) that read and wrote JSON files in
+> `workflows/`. In this **client-side branch** the server is gone:
+> templates live in your browser's `localStorage` instead, alongside
+> instance state. That makes deployment to other machines a single-file
+> drop — see "Deploying" below.
 
-The server also validates every file in `workflows/` at startup and prints the
-result in the terminal. The same validation also runs in the browser when the
-app loads — the picker shows a warning badge next to any file with errors or
-warnings, and the selected workflow's full validation appears as banners
-above the canvas.
+### Importing / Exporting templates
+
+Because templates live in your browser, moving them between machines is a
+deliberate step:
+
+- **Export** in the top bar downloads every template in your store as
+  one JSON file (named `workflow-templates-<timestamp>.json`).
+- **Import** opens a file picker; pick a `.json` file produced by Export
+  (or a single workflow JSON) and the app loads each entry into your
+  store. Existing templates with the same `id` are replaced.
+
+## Deploying to another Windows PC (no install required)
+
+The whole app is now a folder of static files. To put it on another
+machine:
+
+1. Zip the entire `WorkflowRunner/` folder (or just the `public/`
+   subfolder + the top-level `WorkflowRunner.html`).
+2. Copy the zip anywhere on the target PC and unzip it.
+3. Double-click `WorkflowRunner.html`. The default browser opens the
+   app from `file://`. Bookmark it if you'll use it often.
+
+The recipient sees the same example templates you do (they're baked
+into `public/builtin-workflows.js`). Any templates *you* added on your
+machine stay on your machine — to share them, click **Export** here and
+**Import** there.
+
+If you change the bundled examples and want recipients to get them on
+their first launch, edit the workflows in your local app, then run
+`setup-builtins.cmd` once (regenerates `public/builtin-workflows.js`
+from the current `workflows/*.json` on disk) before zipping.
 
 ---
 
