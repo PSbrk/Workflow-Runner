@@ -1,39 +1,45 @@
 // Workflow Runner — main client.
 //
-// State per workflow (persisted in localStorage):
-//   { trail: [stepId, ...], choices: { [stepId]: optionLabel }, cursor: stepId|"end" }
+// Templates (the JSON files in workflows/) are blueprints.
+// Instances are live runs: each instance carries its own SNAPSHOT of a
+// template's steps[] plus its own trail / choices / cursor / completedAck.
+// Mutations on a template don't affect already-running instances.
 //
-// `cursor` is the position the engine walks forward from. Walking through any
-// consecutive "wait" steps it lands on the first "action" or "decision" — that
-// is the *active* step. Steps walked past on the way are *waiting*.
-//
-// On completing the active action (or choosing a decision option), the waits
-// passed and the active step are appended to the trail. The cursor advances to
-// the next routing target. If that target is already in the trail, the trail is
-// truncated at it (loop reset) — every step removed goes back to pending and
-// its recorded decision choice is cleared.
+// Routing rules (walk through waits, loop-reset on revisit, etc.) are
+// unchanged from the original spec — see walkActive / advance below.
 
 const els = {
-  select:        document.getElementById('wf-select'),
-  newBtn:        document.getElementById('new-btn'),
-  editBtn:       document.getElementById('edit-btn'),
-  resetBtn:      document.getElementById('reset-btn'),
-  reloadBtn:     document.getElementById('reload-btn'),
-  statusBar:     document.getElementById('status-bar'),
-  errorsBar:     document.getElementById('errors-bar'),
-  warningsBar:   document.getElementById('warnings-bar'),
-  runTitle:      document.getElementById('run-title'),
-  runTrail:      document.getElementById('run-trail'),
-  flashcard:     document.getElementById('flashcard'),
-  runProgress:   document.getElementById('run-progress'),
+  select:         document.getElementById('wf-select'),          // template picker
+  instanceSelect: document.getElementById('instance-select'),    // instance picker
+  newBtn:         document.getElementById('new-btn'),
+  newMenu:        document.getElementById('new-menu'),
+  editBtn:        document.getElementById('edit-btn'),
+  resetBtn:       document.getElementById('reset-btn'),
+  reloadBtn:      document.getElementById('reload-btn'),
+  statusBar:      document.getElementById('status-bar'),
+  errorsBar:      document.getElementById('errors-bar'),
+  warningsBar:    document.getElementById('warnings-bar'),
+  runTitle:       document.getElementById('run-title'),
+  runSubtitle:    document.getElementById('run-subtitle'),
+  runTrail:       document.getElementById('run-trail'),
+  flashcard:      document.getElementById('flashcard'),
+  runProgress:    document.getElementById('run-progress'),
+  renameBtn:      document.getElementById('rename-btn'),
+  deleteBtn:      document.getElementById('delete-btn'),
+  // New-instance modal
+  niModal:        document.getElementById('new-instance-modal'),
+  niTemplate:     document.getElementById('ni-template'),
+  niTemplateWarn: document.getElementById('ni-template-warn'),
+  niTitle:        document.getElementById('ni-title'),
+  niCancel:       document.getElementById('ni-cancel'),
+  niCreate:       document.getElementById('ni-create'),
 };
 
-let allWorkflows = []; // [{ file, workflow?, parseError?, validation? }]
-let currentEntry = null; // entry from allWorkflows
-let currentWorkflow = null; // currentEntry.workflow with derived helpers
-let state = null; // { trail, choices, cursor }
-
-const LS_PREFIX = 'wfr:';
+let allWorkflows = [];      // template entries from /api/workflows
+let currentEntry = null;    // selected template entry (for editing / new-instance source)
+let currentWorkflow = null; // decorated workflow being WORKED THROUGH (the open instance's steps)
+let currentInstance = null; // open instance, or null
+let state = null;           // alias of currentInstance (same {trail, choices, cursor})
 
 // (Diagram layout constants were removed with the diagram renderer.)
 
@@ -41,28 +47,257 @@ const LS_PREFIX = 'wfr:';
 init();
 
 async function init() {
-  els.select.addEventListener('change', onSelectChange);
+  els.select.addEventListener('change', onTemplateSelectChange);
+  els.instanceSelect.addEventListener('change', onInstanceSelectChange);
   els.resetBtn.addEventListener('click', onReset);
   els.reloadBtn.addEventListener('click', () => loadAll());
-  els.newBtn.addEventListener('click', onNew);
   els.editBtn.addEventListener('click', onEdit);
+
+  // "+ New" split button: opens the dropdown menu.
+  els.newBtn.addEventListener('click', toggleNewMenu);
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.new-dropdown')) return;
+    closeNewMenu();
+  });
+  els.newMenu.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-new]');
+    if (!btn) return;
+    closeNewMenu();
+    const kind = btn.getAttribute('data-new');
+    if (kind === 'workflow')   onNewTemplate();
+    else if (kind === 'instance') onNewInstance();
+  });
+
+  // Rename / Delete buttons (only meaningful when an instance is open).
+  els.renameBtn.addEventListener('click', onRenameInstance);
+  els.deleteBtn.addEventListener('click', onDeleteInstance);
+
+  // New-instance modal handlers.
+  els.niCancel.addEventListener('click', closeNewInstanceModal);
+  els.niCreate.addEventListener('click', confirmCreateInstance);
+  els.niTemplate.addEventListener('change', refreshNiTemplateWarn);
+  els.niTitle.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); confirmCreateInstance(); }
+  });
+  els.niModal.addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal-backdrop')) closeNewInstanceModal();
+  });
+
   await loadAll();
+  // Resume whichever instance was open last (if any).
+  refreshInstanceDropdown();
+  const openId = WfrInstances.getOpenId();
+  if (openId && WfrInstances.load(openId)) {
+    openInstance(openId);
+  } else {
+    render();
+  }
 }
 
-function onNew() {
+// ---------- "+ New" dropdown ----------
+function toggleNewMenu(e) {
+  if (e) e.stopPropagation();
+  const open = !els.newMenu.classList.contains('hidden');
+  els.newMenu.classList.toggle('hidden', open);
+  els.newBtn.setAttribute('aria-expanded', String(!open));
+}
+function closeNewMenu() {
+  els.newMenu.classList.add('hidden');
+  els.newBtn.setAttribute('aria-expanded', 'false');
+}
+
+function onNewTemplate() {
   if (globalThis.WfrEditor) globalThis.WfrEditor.enterNew();
 }
 
+function onNewInstance() {
+  openNewInstanceModal();
+}
+
 function onEdit() {
-  if (!currentEntry) return;
+  if (!currentEntry) {
+    alert('Pick a template from the Workflow dropdown first.');
+    return;
+  }
   if (!globalThis.WfrEditor) return;
-  // If the file failed to parse, give the editor the raw text via a stub.
   if (currentEntry.parseError || !currentEntry.workflow) {
     if (!confirm(`"${currentEntry.file}" failed to parse. Open a blank editor instead?`)) return;
     globalThis.WfrEditor.enterNew();
     return;
   }
   globalThis.WfrEditor.enterEdit(currentEntry.workflow, currentEntry.file);
+}
+
+// ---------- New-instance modal ----------
+function openNewInstanceModal() {
+  // Populate template dropdown
+  els.niTemplate.innerHTML = '';
+  const runnable = allWorkflows.filter((e) => e.workflow && !e.validation.errors.length);
+  if (runnable.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = '(no valid templates)';
+    els.niTemplate.appendChild(opt);
+  } else {
+    for (const e of runnable) {
+      const opt = document.createElement('option');
+      opt.value = e.workflow.id;
+      opt.textContent = e.workflow.title || e.workflow.id;
+      els.niTemplate.appendChild(opt);
+    }
+    // Default to currently-selected template if it's valid.
+    if (currentEntry && currentEntry.workflow && !currentEntry.validation.errors.length) {
+      els.niTemplate.value = currentEntry.workflow.id;
+    }
+  }
+  els.niTitle.value = '';
+  els.niTitle.placeholder = suggestTitle();
+  refreshNiTemplateWarn();
+  els.niModal.classList.remove('hidden');
+  setTimeout(() => els.niTitle.focus(), 0);
+}
+
+function closeNewInstanceModal() {
+  els.niModal.classList.add('hidden');
+}
+
+function refreshNiTemplateWarn() {
+  const id = els.niTemplate.value;
+  const entry = allWorkflows.find((e) => e.workflow && e.workflow.id === id);
+  if (!entry || entry.validation.errors.length) {
+    els.niTemplateWarn.textContent = 'This template has validation errors — instances can only run validated templates.';
+    els.niTemplateWarn.classList.remove('hidden');
+    els.niCreate.disabled = true;
+  } else {
+    els.niTemplateWarn.classList.add('hidden');
+    els.niCreate.disabled = false;
+  }
+  if (entry && entry.workflow) {
+    els.niTitle.placeholder = (entry.workflow.title || entry.workflow.id);
+  }
+}
+
+function suggestTitle() {
+  if (currentEntry && currentEntry.workflow) return currentEntry.workflow.title || currentEntry.workflow.id;
+  return 'My instance';
+}
+
+function confirmCreateInstance() {
+  const id = els.niTemplate.value;
+  const entry = allWorkflows.find((e) => e.workflow && e.workflow.id === id);
+  if (!entry || !entry.workflow) {
+    alert('Pick a template first.');
+    return;
+  }
+  if (entry.validation.errors.length) {
+    alert('That template has validation errors. Fix them in the editor first.');
+    return;
+  }
+  const title = (els.niTitle.value || '').trim() || (entry.workflow.title || entry.workflow.id);
+  let instance;
+  try {
+    instance = WfrInstances.create(entry.workflow, title);
+  } catch (e) {
+    alert('Could not create instance: ' + e.message);
+    return;
+  }
+  closeNewInstanceModal();
+  refreshInstanceDropdown(instance.id);
+  openInstance(instance.id);
+}
+
+// ---------- Instance lifecycle ----------
+function refreshInstanceDropdown(preferId) {
+  const all = WfrInstances.listAll();
+  els.instanceSelect.innerHTML = '';
+  if (all.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = '(no instances)';
+    els.instanceSelect.appendChild(opt);
+    els.instanceSelect.disabled = true;
+    return;
+  }
+  els.instanceSelect.disabled = false;
+  for (const inst of all) {
+    const opt = document.createElement('option');
+    opt.value = inst.id;
+    opt.textContent = inst.title + (inst.cursor === 'end' ? '  ✓' : '');
+    els.instanceSelect.appendChild(opt);
+  }
+  const target = preferId && all.some((i) => i.id === preferId)
+    ? preferId
+    : (currentInstance && all.some((i) => i.id === currentInstance.id) ? currentInstance.id : all[0].id);
+  els.instanceSelect.value = target;
+}
+
+function onInstanceSelectChange() {
+  const id = els.instanceSelect.value;
+  if (!id) return;
+  openInstance(id);
+}
+
+function openInstance(id) {
+  const inst = WfrInstances.load(id);
+  if (!inst) {
+    currentInstance = null;
+    currentWorkflow = null;
+    state = null;
+    WfrInstances.setOpenId(null);
+    render();
+    return;
+  }
+  currentInstance = inst;
+  currentWorkflow = decorateWorkflow({
+    id: inst.id,
+    title: inst.title,
+    steps: inst.steps,
+  });
+  state = inst;            // alias — same trail/choices/cursor object
+  WfrInstances.setOpenId(inst.id);
+  // Sync the instance dropdown value (in case openInstance was called
+  // programmatically rather than via the dropdown).
+  if (els.instanceSelect.value !== inst.id) els.instanceSelect.value = inst.id;
+  render();
+}
+
+function closeInstance() {
+  currentInstance = null;
+  currentWorkflow = null;
+  state = null;
+  WfrInstances.setOpenId(null);
+  render();
+}
+
+function onRenameInstance() {
+  if (!currentInstance) return;
+  const newTitle = prompt('Rename instance:', currentInstance.title);
+  if (newTitle === null) return;
+  const trimmed = newTitle.trim();
+  if (!trimmed || trimmed === currentInstance.title) return;
+  WfrInstances.rename(currentInstance, trimmed);
+  refreshInstanceDropdown(currentInstance.id);
+  render();
+}
+
+function onDeleteInstance() {
+  if (!currentInstance) return;
+  if (!confirm(`Delete instance "${currentInstance.title}"? This cannot be undone.`)) return;
+  deleteCurrentInstance();
+}
+
+function deleteCurrentInstance() {
+  if (!currentInstance) return;
+  const id = currentInstance.id;
+  WfrInstances.remove(id);
+  // Promote the next remaining instance, or fall to the empty state.
+  const remaining = WfrInstances.listAll();
+  currentInstance = null;
+  currentWorkflow = null;
+  state = null;
+  refreshInstanceDropdown(remaining[0] && remaining[0].id);
+  if (remaining[0]) openInstance(remaining[0].id);
+  else { WfrInstances.setOpenId(null); render(); }
 }
 
 // Exposed to the editor for cross-module coordination.
@@ -103,15 +338,9 @@ globalThis.WfrApp = {
                   : (prevValue && has(prevValue)) ? prevValue
                   : (entries[0] && entries[0].workflow && entries[0].workflow.id) || '';
       els.select.value = target;
-      // Update currentEntry/currentWorkflow so reopening the runner shows the
-      // saved version, but don't re-render anything visible (the editor is
-      // up). selectWorkflow() handles this and is safe to call while the run
-      // view is hidden.
-      selectWorkflow(target);
+      selectTemplate(target);
     } catch (e) {
-      // Silent — the editor's save-status already reported the save itself
-      // succeeded; this background refresh failing is a minor inconvenience
-      // resolved by a manual Reload.
+      // Silent — saving already reported; a manual Reload still works.
     }
   },
 };
@@ -134,16 +363,15 @@ async function loadAll(preferId) {
   });
   allWorkflows = entries;
 
-  // Populate the selector.
+  // Populate the TEMPLATE selector.
   const prevValue = els.select.value;
   els.select.innerHTML = '';
   if (entries.length === 0) {
     const opt = document.createElement('option');
     opt.value = '';
-    opt.textContent = '(no workflows in workflows/)';
+    opt.textContent = '(no templates in workflows/)';
     els.select.appendChild(opt);
     currentEntry = null;
-    currentWorkflow = null;
     render();
     showSummary();
     return;
@@ -165,7 +393,7 @@ async function loadAll(preferId) {
                 : (prevValue && has(prevValue)) ? prevValue
                 : fallback;
   els.select.value = target;
-  selectWorkflow(target);
+  selectTemplate(target);
   showSummary();
 }
 
@@ -186,28 +414,21 @@ function showStatus(message, _kind) {
   els.statusBar.classList.remove('hidden');
 }
 
-// ---------- Workflow selection ----------
-function onSelectChange() {
-  selectWorkflow(els.select.value);
+// ---------- Template selection ----------
+// The Workflow dropdown picks the TEMPLATE that Edit / "+ New → Instance"
+// operate on. Templates are never "run" — only viewed/edited. Working
+// through happens on instances (see openInstance).
+function onTemplateSelectChange() {
+  selectTemplate(els.select.value);
 }
 
-function selectWorkflow(idOrFile) {
+function selectTemplate(idOrFile) {
   currentEntry = allWorkflows.find((e) => (e.workflow && e.workflow.id === idOrFile) || e.file === idOrFile) || null;
-  if (!currentEntry) {
-    currentWorkflow = null;
-    render();
-    return;
-  }
-  if (currentEntry.parseError || !currentEntry.workflow) {
-    currentWorkflow = null;
-    renderErrorsWarnings();
-    render();
-    return;
-  }
-  currentWorkflow = decorateWorkflow(currentEntry.workflow);
-  state = loadState(currentWorkflow.id) || initialState(currentWorkflow);
   renderErrorsWarnings();
-  render();
+  // No state change here — template selection is independent of which
+  // instance is currently open. Re-render only if no instance is open
+  // (since the empty-state view mentions the selected template).
+  if (!currentInstance) render();
 }
 
 function decorateWorkflow(wf) {
@@ -217,35 +438,17 @@ function decorateWorkflow(wf) {
   return Object.assign({}, wf, { byId, indexById });
 }
 
-function initialState(wf) {
-  return { trail: [], choices: {}, cursor: wf.steps[0].id };
-}
-
-function loadState(id) {
-  try {
-    const raw = localStorage.getItem(LS_PREFIX + id);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || !Array.isArray(parsed.trail) || typeof parsed.choices !== 'object' || (typeof parsed.cursor !== 'string' && parsed.cursor !== null)) return null;
-    return parsed;
-  } catch (e) {
-    return null;
-  }
-}
-
 function saveState() {
-  if (!currentWorkflow || !state) return;
-  try {
-    localStorage.setItem(LS_PREFIX + currentWorkflow.id, JSON.stringify(state));
-  } catch (e) {
-    // ignore quota errors
-  }
+  if (!currentInstance) return;
+  WfrInstances.save(currentInstance);
 }
 
 function onReset() {
-  if (!currentWorkflow) return;
-  state = initialState(currentWorkflow);
-  saveState();
+  if (!currentInstance) {
+    alert('No instance open. Pick one from the Instance dropdown or create a new one.');
+    return;
+  }
+  WfrInstances.resetProgress(currentInstance);
   render();
 }
 
@@ -259,12 +462,12 @@ function renderErrorsWarnings() {
   const v = currentEntry.validation;
   if (v.errors.length) {
     const items = v.errors.map(formatIssue).join('');
-    els.errorsBar.innerHTML = `<strong>This workflow has errors and cannot be run.</strong><ul>${items}</ul>`;
+    els.errorsBar.innerHTML = `<strong>This template has errors — you can't create instances from it.</strong><ul>${items}</ul>`;
     els.errorsBar.classList.remove('hidden');
   }
   if (v.warnings.length) {
     const items = v.warnings.map(formatIssue).join('');
-    els.warningsBar.innerHTML = `<strong>Warnings:</strong><ul>${items}</ul>`;
+    els.warningsBar.innerHTML = `<strong>Template warnings:</strong><ul>${items}</ul>`;
     els.warningsBar.classList.remove('hidden');
   }
 }
@@ -390,8 +593,12 @@ function advance(newlyDone, choiceEntry, nextCursor) {
     }
   }
 
-  state = { trail, choices, cursor: nextCursor };
+  // Mutate the instance in place (state IS currentInstance — see openInstance).
+  state.trail = trail;
+  state.choices = choices;
+  state.cursor = nextCursor;
   saveState();
+  refreshInstanceDropdown(currentInstance.id);
   render();
 }
 
@@ -410,32 +617,33 @@ function flashError(msg) {
 function render() {
   // Clear all panes.
   els.runTitle.textContent = '';
+  els.runSubtitle.textContent = '';
   els.runTrail.innerHTML = '';
   els.flashcard.innerHTML = '';
   els.runProgress.innerHTML = '';
   els.flashcard.className = 'flashcard';
+  els.renameBtn.classList.add('hidden');
+  els.deleteBtn.classList.add('hidden');
 
-  // Empty / parse-error / unselected.
-  if (!currentWorkflow) {
-    els.flashcard.classList.add('empty-card');
-    if (currentEntry && currentEntry.parseError) {
-      els.flashcard.textContent = `Could not parse "${currentEntry.file}": ${currentEntry.parseError}`;
-    } else if (allWorkflows.length === 0) {
-      els.flashcard.textContent = 'No workflow JSON files yet. Click "+ New" to create one, or drop a JSON file into workflows/ and click Reload.';
-    } else {
-      els.flashcard.textContent = 'Select a workflow above.';
-    }
+  // No instance open → empty/encouragement state.
+  if (!currentInstance || !currentWorkflow) {
+    renderEmptyState();
     return;
   }
 
   const wf = currentWorkflow;
-  const blocked = currentEntry.validation.errors.length > 0;
+  els.runTitle.textContent = currentInstance.title;
+  els.runSubtitle.textContent = 'from ' + currentInstance.templateTitle;
+  els.renameBtn.classList.remove('hidden');
+  els.deleteBtn.classList.remove('hidden');
 
-  els.runTitle.textContent = wf.title || wf.id;
-
-  if (blocked) {
+  // Validate the instance's snapshot — should be valid because templates are
+  // validated before instance creation, but guard anyway.
+  const v = validateWorkflow({ id: currentInstance.id, steps: currentInstance.steps });
+  if (v.errors.length) {
     els.flashcard.classList.add('error');
-    els.flashcard.innerHTML = '<strong>Workflow has validation errors.</strong><br>Fix them in the editor before running. See the red banner above for the details.';
+    const items = v.errors.map((e) => `<li>${escapeHtml((e.stepId ? e.stepId + ': ' : '') + e.message)}</li>`).join('');
+    els.flashcard.innerHTML = `<strong>Instance snapshot has validation errors:</strong><ul>${items}</ul>`;
     return;
   }
 
@@ -458,25 +666,7 @@ function render() {
 
   // Card body.
   if (state.cursor === 'end') {
-    els.flashcard.classList.add('complete');
-    const h = document.createElement('div');
-    h.className = 'fc-complete-title';
-    h.textContent = '✓ Workflow complete';
-    const s = document.createElement('div');
-    s.className = 'fc-complete-sub';
-    s.textContent = `${wf.title || wf.id} — ${state.trail.length} step${state.trail.length === 1 ? '' : 's'} done`;
-    els.flashcard.appendChild(h);
-    els.flashcard.appendChild(s);
-    const reset = document.createElement('button');
-    reset.className = 'fc-complete-btn';
-    reset.style.marginTop = '20px';
-    reset.style.maxWidth = '200px';
-    reset.style.background = 'white';
-    reset.style.color = 'var(--done)';
-    reset.style.border = '1.5px solid var(--done)';
-    reset.textContent = 'Run again';
-    reset.addEventListener('click', onReset);
-    els.flashcard.appendChild(reset);
+    renderCompletedCard();
   } else if (activeId) {
     const step = wf.byId[activeId];
     els.flashcard.classList.add('active');
@@ -544,6 +734,105 @@ function render() {
 
   // Progress.
   renderProgress(wf);
+}
+
+function renderEmptyState() {
+  els.flashcard.classList.add('empty-card');
+  const allInst = WfrInstances.listAll();
+  if (allWorkflows.length === 0) {
+    els.flashcard.innerHTML =
+      '<div style="text-align:center;">' +
+        '<div style="font-size:18px;font-weight:600;color:var(--text);margin-bottom:8px;">No templates yet</div>' +
+        '<div style="color:var(--muted);font-style:normal;">Click <strong>+ New ▾</strong> → <strong>Workflow (template)</strong> to author one, or drop a JSON file into <code>workflows/</code> and click <strong>Reload</strong>.</div>' +
+      '</div>';
+    return;
+  }
+  if (allInst.length === 0) {
+    els.flashcard.innerHTML =
+      '<div style="text-align:center;">' +
+        '<div style="font-size:18px;font-weight:600;color:var(--text);margin-bottom:8px;">No instances yet</div>' +
+        '<div style="color:var(--muted);font-style:normal;">Click <strong>+ New ▾</strong> → <strong>Instance</strong> to start a new run from one of your templates.</div>' +
+      '</div>';
+    return;
+  }
+  els.flashcard.innerHTML =
+    '<div style="text-align:center;">' +
+      '<div style="font-size:18px;font-weight:600;color:var(--text);margin-bottom:8px;">No instance open</div>' +
+      '<div style="color:var(--muted);font-style:normal;">Pick one from the <strong>Instance</strong> dropdown, or click <strong>+ New ▾</strong> → <strong>Instance</strong>.</div>' +
+    '</div>';
+}
+
+function renderCompletedCard() {
+  els.flashcard.classList.add('complete');
+  const h = document.createElement('div');
+  h.className = 'fc-complete-title';
+  h.textContent = '✓ Workflow complete';
+  const s = document.createElement('div');
+  s.className = 'fc-complete-sub';
+  s.textContent = `${currentInstance.title} — ${state.trail.length} step${state.trail.length === 1 ? '' : 's'} done`;
+  els.flashcard.appendChild(h);
+  els.flashcard.appendChild(s);
+
+  if (!state.completedAcknowledged) {
+    // Initial reach-the-end prompt: "Confirm you have ended this workflow."
+    const box = document.createElement('div');
+    box.className = 'end-confirm';
+    const msg = document.createElement('div');
+    msg.className = 'end-confirm-msg';
+    msg.textContent = 'Confirm you have ended this workflow.';
+    box.appendChild(msg);
+    const btnRow = document.createElement('div');
+    btnRow.className = 'end-confirm-buttons';
+    const yes = document.createElement('button');
+    yes.className = 'yes';
+    yes.textContent = 'Yes — delete this instance';
+    yes.addEventListener('click', onConfirmEndYes);
+    const no  = document.createElement('button');
+    no.className  = 'no';
+    no.textContent  = 'No, keep it';
+    no.addEventListener('click', onConfirmEndNo);
+    btnRow.appendChild(yes);
+    btnRow.appendChild(no);
+    box.appendChild(btnRow);
+    els.flashcard.appendChild(box);
+  } else {
+    // Already acknowledged → just offer Start again + an unobtrusive delete link.
+    const actions = document.createElement('div');
+    actions.className = 'fc-completed-actions';
+    const restart = document.createElement('button');
+    restart.className = 'restart';
+    restart.textContent = 'Start again';
+    restart.addEventListener('click', onStartAgain);
+    actions.appendChild(restart);
+    const del = document.createElement('button');
+    del.className = 'delete-link';
+    del.textContent = 'Delete this instance';
+    del.addEventListener('click', onDeleteInstance);
+    actions.appendChild(del);
+    els.flashcard.appendChild(actions);
+  }
+}
+
+function onConfirmEndYes() {
+  // Yes → delete the instance permanently.
+  deleteCurrentInstance();
+}
+
+function onConfirmEndNo() {
+  // No → keep the instance in its completed state; remember the user
+  // declined so the prompt doesn't reappear next time they open it.
+  if (!currentInstance) return;
+  state.completedAcknowledged = true;
+  saveState();
+  refreshInstanceDropdown(currentInstance.id);
+  render();
+}
+
+function onStartAgain() {
+  if (!currentInstance) return;
+  WfrInstances.resetProgress(currentInstance);
+  refreshInstanceDropdown(currentInstance.id);
+  render();
 }
 
 function renderTrail(wf, activeId, waitsPassed) {

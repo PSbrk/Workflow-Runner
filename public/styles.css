@@ -342,6 +342,95 @@ main {
 }
 
 /* ============================================================
+   "+ New" dropdown menu
+   ============================================================ */
+.new-dropdown { position: relative; display: inline-block; }
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 200px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  padding: 4px;
+  z-index: 200;
+}
+.dropdown-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 7px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.dropdown-menu button:hover { background: #f3f4f6; }
+
+/* ============================================================
+   Modal (new-instance dialog)
+   ============================================================ */
+.modal { position: fixed; inset: 0; z-index: 1000; }
+.modal.hidden { display: none; }
+.modal-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(2px);
+}
+.modal-panel {
+  position: relative;
+  max-width: 480px;
+  margin: 100px auto 0;
+  background: white;
+  border-radius: 12px;
+  padding: 22px 24px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+}
+.modal-panel h3 { margin: 0 0 16px; font-size: 16px; font-weight: 600; }
+.modal-field { margin-bottom: 16px; }
+.modal-field label {
+  display: block;
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.modal-field input,
+.modal-field select {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+}
+.modal-field input:focus,
+.modal-field select:focus {
+  outline: none;
+  border-color: var(--active);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.modal-warn {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  border-radius: 5px;
+  font-size: 12.5px;
+  border: 1px solid var(--warn-border);
+}
+
+/* ============================================================
    Run view — flashcard
    ============================================================ */
 .run-shell {
@@ -350,13 +439,80 @@ main {
   padding: 0 8px;
 }
 
-.run-title {
-  text-align: center;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 12px;
+.run-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
 }
+.run-titles { flex: 1; text-align: center; }
+
+.run-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+.run-title:empty { display: none; }
+
+.run-subtitle {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 2px;
+  font-style: italic;
+}
+.run-subtitle:empty { display: none; }
+
+.run-actions { display: flex; gap: 6px; align-items: center; }
+
+.ghost-btn,
+.ghost-btn-danger {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 10px;
+  border: 1px solid #d1d5db;
+  background: white;
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--muted);
+}
+.ghost-btn:hover { color: var(--text); background: #f3f4f6; }
+.ghost-btn-danger { border-color: var(--error-border); color: var(--error); }
+.ghost-btn-danger:hover { background: var(--error-bg); }
+
+/* End-of-instance confirm box (inside the flashcard.complete card) */
+.end-confirm {
+  margin-top: 18px;
+  padding: 14px 16px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  text-align: left;
+}
+.end-confirm-msg { font-weight: 500; margin-bottom: 12px; }
+.end-confirm-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.end-confirm-buttons button { padding: 8px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid; }
+.end-confirm-buttons .yes { background: var(--error); color: white; border-color: var(--error); }
+.end-confirm-buttons .yes:hover { background: #991b1b; }
+.end-confirm-buttons .no  { background: white; color: var(--text); border-color: #d1d5db; }
+.end-confirm-buttons .no:hover { background: #f3f4f6; }
+
+/* Completed-acknowledged actions */
+.fc-completed-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; align-items: center; }
+.fc-completed-actions button { padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; }
+.fc-completed-actions .restart { background: white; color: var(--done); border: 1.5px solid var(--done); }
+.fc-completed-actions .restart:hover { background: var(--done-bg); }
+.fc-completed-actions .delete-link {
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.fc-completed-actions .delete-link:hover { color: var(--error); }
 
 .run-trail {
   display: flex;

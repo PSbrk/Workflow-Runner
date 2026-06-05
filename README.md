@@ -1,19 +1,32 @@
 # Workflow Runner
 
 A local web app that turns a JSON description of a process into a clickable
-chain of boxes. Drop a `workflows/<id>.json` file in, refresh, and step through
-your process: click the current step to mark it done, pick options on decision
-steps to branch, and let loop-backs reset a segment when you re-enter it.
+chain of boxes. Define a process once as a **template**, then create as many
+**instances** as you want — each instance is an independent run with its own
+title, progress, and decision history.
 
-Two ways to get a workflow into the app:
+Two ways to author a template:
 
 1. **Have Claude write one for you.** Describe the process in plain language;
    Claude writes a `workflows/<id>.json` file matching the schema in this
-   README. Reload and run it.
-2. **Build it yourself in the app.** Click **+ New** (or **Edit** on an
-   existing workflow) — the built-in editor gives you a form-based step list
-   on the left and a live diagram on the right. Save writes the JSON file to
-   disk for you, with file renames handled when you change the id.
+   README. Reload and create an instance from it.
+2. **Build it yourself in the app.** Click **+ New ▾** → **Workflow (template)**
+   (or **Edit** on an existing template) — the built-in editor gives you a
+   drag-drop canvas, a form-based step list, and a raw-JSON tab. Save writes
+   the JSON file to disk for you.
+
+## Templates vs instances
+
+- **Template** = a workflow definition (a JSON file in `workflows/`).
+  Templates are blueprints — you view and edit them but never "run" them
+  directly. Progress is not tracked on a template.
+- **Instance** = a live run of a template. When you create an instance from
+  a template, the app **snapshots** the template's steps so future edits to
+  the template don't disturb already-running instances. Each instance has
+  its own title, trail, current position, and decision choices, and persists
+  independently (in `localStorage`) so the program can close and reopen and
+  resume exactly where you were. Many instances can exist at once, including
+  several from the same template.
 
 ---
 
@@ -37,6 +50,25 @@ above the canvas.
 
 ---
 
+## Top bar
+
+- **Workflow ▾** — picks a *template* (for the Edit button and for the
+  default selection in the new-instance dialog).
+- **Instance ▾** — lists every saved instance; picking one opens it as the
+  active workspace. Completed instances are marked `✓`.
+- **+ New ▾** opens a small menu with two choices:
+  - **Workflow (template)** — opens the editor on a blank new template.
+  - **Instance** — opens a small dialog that asks (1) which template to use
+    and (2) what to title the instance. On confirm, a new instance is
+    created from a snapshot of the chosen template and opened.
+- **Edit** — opens the editor on the currently-selected template.
+- **Reset** — clears progress on the currently-open instance (back to step 1).
+- **Reload** — re-reads template files from disk.
+
+The header above the runner shows the **instance title** prominently with
+a smaller "from <template name>" subtitle, plus **Rename** and **Delete
+instance** buttons.
+
 ## How a run feels — flashcard view
 
 The runner shows **one card at a time** — whatever's waiting for your input
@@ -55,9 +87,37 @@ right now. Around it:
 - When the workflow reaches `end`, the card flips to a green **"✓ Workflow
   complete"** card with a **"Run again"** button.
 
-Progress is saved per workflow in `localStorage`. **"Reset workflow"** in the
-header clears it for the current workflow. Closing the browser and reopening
-keeps you where you were.
+Progress is saved per **instance** in `localStorage`. **Reset** in the header
+clears the open instance's progress. Closing the browser and reopening keeps
+you on whichever instance was open and exactly where you left it.
+
+### Reaching the end of an instance
+
+When an instance reaches a terminal step, the card shows a green
+"✓ Workflow complete" header followed by:
+
+```
+Confirm you have ended this workflow.
+[Yes — delete this instance]   [No, keep it]
+```
+
+- **Yes** removes the instance permanently from the dropdown and from
+  storage. If another instance exists, it becomes the active one;
+  otherwise you land on the "No instances yet" empty state.
+- **No** keeps the instance in its completed state. From then on the card
+  shows a **Start again** button (and a small Delete this instance link).
+  Start again resets the instance to step 1 and clears its trail, choices,
+  and acknowledgement — so you can re-run the same instance from scratch.
+
+### Renaming and switching
+
+- Click **Rename** in the header to change the instance's title. The new
+  title shows up in the header and in the Instance dropdown immediately.
+  Titles are free-form and need not be unique.
+- Switching to a different instance from the Instance dropdown keeps each
+  instance's state intact — both their trails, choices, and cursor
+  positions are preserved independently. Each instance picks up exactly
+  where it left off.
 
 ---
 
@@ -327,16 +387,30 @@ WorkflowRunner/
 ├── server.py                    # stdlib-only static server, /api/workflows
 ├── start.cmd                    # Windows convenience launcher
 ├── README.md
-├── workflows/
+├── workflows/                   # templates (JSON, on disk)
 │   └── ica-renewal.json         # example
 └── public/
     ├── index.html
     ├── styles.css
     ├── validator.js             # browser validator (mirrored by server.py)
     ├── app.js                   # flashcard runner: walk, click, persist
-    ├── editor.js                # form + raw-JSON editor with live preview
+    ├── instances.js             # instance store (localStorage)
+    ├── editor.js                # form + raw-JSON editor
     └── editor-canvas.js         # drag-drop visual editor (Canvas tab)
 ```
+
+### Storage
+
+- Templates live in `workflows/<id>.json` on disk. Authoring, editing,
+  renaming, and validation behaviour are unchanged.
+- Instances live in `localStorage`:
+  - `wfri:<instance-id>` — full instance object (snapshot of template
+    steps, plus title, trail, choices, cursor, completedAcknowledged,
+    createdAt).
+  - `wfri-open` — id of the currently-open instance (so reload resumes it).
+- Each instance owns a deep copy of the template's `steps` array at
+  creation time, so editing a template after the fact does **not** alter
+  running instances.
 
 ### Optional step fields persisted by the canvas editor
 

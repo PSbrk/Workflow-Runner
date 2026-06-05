@@ -11,10 +11,18 @@
     <h1>Workflow Runner</h1>
     <div class="controls">
       <label for="wf-select">Workflow</label>
-      <select id="wf-select" aria-label="Select workflow"></select>
-      <button id="new-btn"     type="button" title="Create a new blank workflow">+ New</button>
-      <button id="edit-btn"    type="button" title="Edit this workflow">Edit</button>
-      <button id="reset-btn"   type="button" title="Reset progress for this workflow">Reset</button>
+      <select id="wf-select" aria-label="Select workflow template"></select>
+      <label for="instance-select">Instance</label>
+      <select id="instance-select" aria-label="Select instance"></select>
+      <span class="new-dropdown">
+        <button id="new-btn" type="button" aria-haspopup="true" aria-expanded="false" title="Create a new template or instance">+ New ▾</button>
+        <div id="new-menu" class="dropdown-menu hidden" role="menu">
+          <button type="button" data-new="workflow" role="menuitem">Workflow (template)</button>
+          <button type="button" data-new="instance" role="menuitem">Instance</button>
+        </div>
+      </span>
+      <button id="edit-btn"    type="button" title="Edit the selected template">Edit</button>
+      <button id="reset-btn"   type="button" title="Reset progress on the open instance">Reset</button>
       <button id="reload-btn"  type="button" title="Re-read workflow files from disk">Reload</button>
     </div>
   </header>
@@ -24,15 +32,45 @@
     <section id="errors-bar"   class="errors-bar hidden"   role="alert"></section>
     <section id="warnings-bar" class="warnings-bar hidden"></section>
 
-    <!-- Run view: single-card "flashcard" UI -->
+    <!-- Run view: single-card "flashcard" UI for the open INSTANCE -->
     <section id="run-view">
       <div class="run-shell">
-        <div id="run-title" class="run-title"></div>
+        <div class="run-header">
+          <div class="run-titles">
+            <div id="run-title" class="run-title"></div>
+            <div id="run-subtitle" class="run-subtitle"></div>
+          </div>
+          <div class="run-actions">
+            <button id="rename-btn" type="button" class="ghost-btn hidden" title="Rename this instance">Rename</button>
+            <button id="delete-btn" type="button" class="ghost-btn-danger hidden" title="Delete this instance">Delete instance</button>
+          </div>
+        </div>
         <div id="run-trail" class="run-trail"></div>
         <div id="flashcard" class="flashcard"></div>
         <div id="run-progress" class="run-progress"></div>
       </div>
     </section>
+
+    <!-- New-instance modal -->
+    <div id="new-instance-modal" class="modal hidden" role="dialog" aria-labelledby="ni-heading">
+      <div class="modal-backdrop"></div>
+      <div class="modal-panel">
+        <h3 id="ni-heading">Create a new instance</h3>
+        <div class="modal-field">
+          <label for="ni-template">1. Which workflow would you like to use?</label>
+          <select id="ni-template"></select>
+          <div id="ni-template-warn" class="modal-warn hidden"></div>
+        </div>
+        <div class="modal-field">
+          <label for="ni-title">2. What would you like this instance to be titled?</label>
+          <input id="ni-title" type="text" placeholder="e.g. DLT-Longbridge Renewal" autocomplete="off">
+        </div>
+        <div class="modal-actions">
+          <button id="ni-cancel" type="button">Cancel</button>
+          <button id="ni-create" type="button" class="btn-primary">Create instance</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Edit view -->
     <section id="edit-view" class="hidden">
@@ -133,6 +171,7 @@
   </main>
 
   <script src="validator.js"></script>
+  <script src="instances.js"></script>
   <script src="editor-canvas.js"></script>
   <script src="editor.js"></script>
   <script src="app.js"></script>
