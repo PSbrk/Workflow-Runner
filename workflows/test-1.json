@@ -1,0 +1,47 @@
+{
+  "id": "test-1",
+  "title": "Test 1",
+  "steps": [
+    {
+      "id": "s2",
+      "type": "decision",
+      "label": "testing",
+      "position": {
+        "x": 630.9999084472656,
+        "y": 134.99993133544922
+      },
+      "options": [
+        {
+          "label": "Yes",
+          "goto": "s3"
+        },
+        {
+          "label": "No",
+          "goto": "s4"
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "type": "wait",
+      "label": "WAIT1",
+      "position": {
+        "x": 401.9999694824219,
+        "y": 339
+      }
+    },
+    {
+      "id": "s4",
+      "type": "action",
+      "label": "Just to show",
+      "position": {
+        "x": 856.5036315917969,
+        "y": 315.0000915527344
+      }
+    }
+  ],
+  "endPosition": {
+    "x": 221.00001525878906,
+    "y": 506
+  }
+}
