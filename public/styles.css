@@ -1339,6 +1339,23 @@ input.input-error, textarea.input-error {
 }
 .canvas-svg .edge-delete-btn:hover ~ .edge-delete-btn-text { fill: white; }
 
+/* Edit-label "⋯" button for a selected edge, paired with the delete button. */
+.canvas-svg .edge-edit-btn {
+  fill: white;
+  stroke: var(--active);
+  stroke-width: 1.5;
+  cursor: pointer;
+}
+.canvas-svg .edge-edit-btn:hover { fill: var(--active); }
+.canvas-svg .edge-edit-btn-text {
+  fill: var(--active);
+  font-size: 14px;
+  font-weight: 700;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.canvas-svg .edge-edit-btn:hover ~ .edge-edit-btn-text { fill: white; }
+
 .canvas-svg .edge-label-bg {
   fill: white;
   stroke: #d1d5db;

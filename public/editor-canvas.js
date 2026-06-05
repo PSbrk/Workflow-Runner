@@ -369,6 +369,19 @@
       return;
     }
 
+    // Handle: rename an edge via the ⋯ button on a selected edge.
+    if (target.classList && target.classList.contains('edge-edit-btn')) {
+      e.preventDefault();
+      e.stopPropagation();
+      const edgeGroup = target.closest('.edge-group');
+      if (edgeGroup) {
+        const sourceId = edgeGroup.getAttribute('data-source-id');
+        const edgeIdx  = parseInt(edgeGroup.getAttribute('data-edge-idx'), 10);
+        editEdgeLabel(sourceId, edgeIdx);
+      }
+      return;
+    }
+
     // Handle: delete an edge via the ✕ button on a selected edge.
     if (target.classList && target.classList.contains('edge-delete-btn')) {
       e.preventDefault();
@@ -739,21 +752,43 @@
 
   function editEdgeLabel(sourceId, edgeIdx) {
     const source = stepById(sourceId);
-    if (!source || source.type !== 'decision') return;
-    const opt = source.options[edgeIdx];
-    if (!opt) return;
-    // Place input at edge midpoint.
-    const sourcePos = source.position;
-    const target = opt.goto === 'end' ? cv.workflow.endPosition : (stepById(opt.goto) || {}).position;
+    if (!source) return;
+
+    // Figure out the connection target and the field that stores the label.
+    let target, currentLabel, onSave, placeholder;
+    if (source.type === 'decision') {
+      const opt = source.options && source.options[edgeIdx];
+      if (!opt) return;
+      target = opt.goto === 'end' ? cv.workflow.endPosition : (stepById(opt.goto) || {}).position;
+      currentLabel = opt.label || '';
+      placeholder = 'Option label';
+      onSave = (v) => { opt.label = v; cv.onChange(); render(); };
+    } else {
+      // action / wait — single edge addressed by source.next.
+      const goto = source.next;
+      if (!goto) return;
+      target = goto === 'end' ? cv.workflow.endPosition : (stepById(goto) || {}).position;
+      currentLabel = source.nextLabel || '';
+      placeholder = 'Connector label';
+      onSave = (v) => {
+        const trimmed = (v || '').trim();
+        if (trimmed) source.nextLabel = trimmed;
+        else delete source.nextLabel; // empty string clears the label
+        cv.onChange();
+        render();
+      };
+    }
     if (!target) return;
+
+    const sourcePos = source.position;
     const mx = (sourcePos.x + target.x) / 2;
     const my = (sourcePos.y + target.y) / 2;
     showInlineInput({
       anchorX: mx,
       anchorY: my,
-      value: opt.label || '',
-      placeholder: 'Option label',
-      onSave: (v) => { opt.label = v; cv.onChange(); render(); },
+      value: currentLabel,
+      placeholder: placeholder,
+      onSave: onSave,
     });
   }
 
@@ -1124,9 +1159,12 @@
     const wf = cv.workflow;
     for (const step of wf.steps) {
       if (!step || !step.position) continue;
+      // For non-decision steps the user can attach an optional nextLabel via
+      // the ⋯ edit button on the edge; surface it here so renderEdge draws it
+      // exactly like a decision option's label.
       const targets = step.type === 'decision'
         ? (Array.isArray(step.options) ? step.options : [])
-        : (step.next !== undefined ? [{ goto: step.next, label: null }] : []);
+        : (step.next !== undefined ? [{ goto: step.next, label: step.nextLabel || null }] : []);
       targets.forEach((tgt, idx) => {
         // While the user is dragging this very edge's endpoint, hide it —
         // the temp edge follows the cursor instead.
@@ -1140,7 +1178,7 @@
           ? wf.endPosition
           : (() => { const t = stepById(goto); return t && t.position; })();
         if (!targetCenter) return;
-        renderEdge(layer, step, targetCenter, goto, idx, step.type === 'decision' ? tgt.label : null);
+        renderEdge(layer, step, targetCenter, goto, idx, tgt.label || null);
       });
     }
   }
@@ -1228,11 +1266,38 @@
       bg.addEventListener('dblclick', editHandler);
     }
 
-    // Delete button — shown only when this edge is selected, sitting on the
-    // opposite side of the midpoint from the label so the two don't overlap.
+    // Selected-edge controls: ⋯ edit and ✕ delete. Both sit on the opposite
+    // side of the midpoint from the label so the three don't overlap. The
+    // edit button is positioned along the tangent toward the source and the
+    // delete button along the tangent toward the target so they sit
+    // side-by-side perpendicular to the path.
     if (isSelected) {
-      const dx = mid.x - nx * (label ? 20 : 18);
-      const dy = mid.y - ny * (label ? 20 : 18);
+      // Perpendicular unit (away from any label) and tangent unit.
+      const px = -nx * (label ? 22 : 20);
+      const py = -ny * (label ? 22 : 20);
+      // Tangent unit vector (already used to compute nx, ny via tx2, ty2).
+      const utx = tx2 / tlen;
+      const uty = ty2 / tlen;
+
+      // Edit ⋯ button — tangent offset toward source.
+      const ex = mid.x + px - utx * 13;
+      const ey = mid.y + py - uty * 13;
+      const editBtn = document.createElementNS(SVG_NS, 'circle');
+      editBtn.setAttribute('class', 'edge-edit-btn');
+      editBtn.setAttribute('cx', String(ex));
+      editBtn.setAttribute('cy', String(ey));
+      editBtn.setAttribute('r', '10');
+      g.appendChild(editBtn);
+      const editT = document.createElementNS(SVG_NS, 'text');
+      editT.setAttribute('class', 'edge-edit-btn-text');
+      editT.setAttribute('x', String(ex));
+      editT.setAttribute('y', String(ey + 5));
+      editT.textContent = '⋯';
+      g.appendChild(editT);
+
+      // Delete ✕ button — tangent offset toward target.
+      const dx = mid.x + px + utx * 13;
+      const dy = mid.y + py + uty * 13;
       const delBtn = document.createElementNS(SVG_NS, 'circle');
       delBtn.setAttribute('class', 'edge-delete-btn');
       delBtn.setAttribute('cx', String(dx));
