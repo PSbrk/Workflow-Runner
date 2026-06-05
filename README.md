@@ -48,6 +48,34 @@ app loads — the picker shows a warning badge next to any file with errors or
 warnings, and the selected workflow's full validation appears as banners
 above the canvas.
 
+## Deploying to another Windows PC (no Python required)
+
+The app needs a Python 3 interpreter to run `server.py`. Rather than install
+Python on each target machine, bundle the **embeddable** Python distribution
+into the project folder once and ship the whole thing as a zip:
+
+1. On any machine with internet, run `setup-python.cmd`. It downloads
+   `python-3.13.1-embed-amd64.zip` from python.org (~10 MB) and extracts
+   it into `.\python\`. The script is idempotent — running it a second
+   time when `python\python.exe` is already there is a no-op.
+2. Zip the entire `WorkflowRunner\` folder (now containing `python\`).
+3. Copy the zip to the target PC and unzip it anywhere — `C:\Tools\`,
+   the Desktop, wherever.
+4. Recipients double-click `start.cmd` (or create a desktop shortcut to
+   it). `start.cmd` prefers `.\python\python.exe` over the system
+   interpreter, so no install is needed on the target.
+
+The bundled Python is the official "embeddable" distribution from
+python.org — it's just an interpreter and the stdlib, no `pip`, no
+`tkinter`. The Workflow Runner server only uses the stdlib (`http.server`,
+`json`, `os`, `re`, `socket`, `threading`, `webbrowser`), so this is
+sufficient. To update the bundled Python later, edit the `PY_VERSION` line
+at the top of `setup-python.cmd`, delete the `python\` folder, and re-run
+`setup-python.cmd`.
+
+`python\` is `.gitignore`d so the binaries don't get committed — each
+packager re-fetches them on their own machine before bundling.
+
 ---
 
 ## Top bar

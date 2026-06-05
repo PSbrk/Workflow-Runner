@@ -20,3 +20,9 @@ desktop.ini
 
 # Local Claude Code config (per-machine launch paths, etc.)
 .claude/
+
+# Embeddable Python (downloaded by setup-python.cmd). Don't commit the
+# interpreter binaries — devs and packagers re-run setup-python.cmd to
+# populate this folder on their machine before bundling for distribution.
+python/
+python-embed.zip
