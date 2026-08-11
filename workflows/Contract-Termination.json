@@ -1,0 +1,90 @@
+{
+  "id": "Contract-Termination",
+  "title": "PM wants to terminate a Contract.",
+  "steps": [
+    {
+      "id": "s1",
+      "type": "action",
+      "label": "PM wants to terminate a contract.",
+      "position": {
+        "x": 766.0001220703125,
+        "y": 79
+      },
+      "next": "s2"
+    },
+    {
+      "id": "s2",
+      "type": "action",
+      "label": "Find contract in Conga.",
+      "position": {
+        "x": 766.0003051757812,
+        "y": 153.9997100830078
+      },
+      "next": "s4"
+    },
+    {
+      "id": "s3",
+      "type": "action",
+      "label": "In the \"Reason for Termination\" line, firstly, list the reason, and then add \"Please do not send the letter of termination directly to the vendor, please send it to [coordinator]@life.church so that the Property manager can deliver it in person.",
+      "position": {
+        "x": 762.000244140625,
+        "y": 456.0000915527344
+      },
+      "next": "s6"
+    },
+    {
+      "id": "s4",
+      "type": "action",
+      "label": "Copy out as much information as you can (doing this in a separate window might help).",
+      "position": {
+        "x": 765.000244140625,
+        "y": 236.9998321533203
+      },
+      "next": "s5"
+    },
+    {
+      "id": "s5",
+      "type": "action",
+      "label": "In Conga, select New Request, and then Contract Termination Request.",
+      "position": {
+        "x": 760.000244140625,
+        "y": 337.99993896484375
+      },
+      "next": "s3"
+    },
+    {
+      "id": "s6",
+      "type": "action",
+      "label": "Fill out the rest of the document as required.",
+      "position": {
+        "x": 766.000244140625,
+        "y": 582.000244140625
+      },
+      "next": "s7"
+    },
+    {
+      "id": "s7",
+      "type": "action",
+      "label": "Review what you've put in for errors.",
+      "position": {
+        "x": 767.0003051757812,
+        "y": 668.0003051757812
+      },
+      "next": "s8"
+    },
+    {
+      "id": "s8",
+      "type": "action",
+      "label": "Submit the request when ready.",
+      "position": {
+        "x": 768.0002136230469,
+        "y": 737.0003967285156
+      },
+      "next": "end"
+    }
+  ],
+  "endPosition": {
+    "x": 769.0009765625,
+    "y": 812.0010681152344
+  }
+}

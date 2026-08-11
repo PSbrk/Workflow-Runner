@@ -1,0 +1,79 @@
+{
+  "id": "Updating-spend-amounts",
+  "title": "Updating Spend amounts",
+  "steps": [
+    {
+      "id": "s1",
+      "type": "action",
+      "label": "The \"amounts spent on our contracts\" needs updating.",
+      "position": {
+        "x": 906,
+        "y": 75
+      },
+      "next": "s2"
+    },
+    {
+      "id": "s2",
+      "type": "action",
+      "label": "Go to Tableau. Sign in.",
+      "position": {
+        "x": 904.0001220703125,
+        "y": 156.9998779296875
+      },
+      "next": "s3"
+    },
+    {
+      "id": "s3",
+      "type": "action",
+      "label": "In the filters, in Department, choose only \"000\" and\"107\".",
+      "position": {
+        "x": 904.0001220703125,
+        "y": 239.99989318847656
+      },
+      "next": "s4"
+    },
+    {
+      "id": "s4",
+      "type": "action",
+      "label": "Now, in the filters, in Account, choose only 63015, 63020, 63040, 63080 and 63090.",
+      "position": {
+        "x": 903.0001220703125,
+        "y": 334.99993896484375
+      },
+      "next": "s5"
+    },
+    {
+      "id": "s5",
+      "type": "action",
+      "label": "Click download in the top left of the page (big button).",
+      "position": {
+        "x": 900.5001220703125,
+        "y": 430.9999694824219
+      },
+      "next": "s6"
+    },
+    {
+      "id": "s6",
+      "type": "action",
+      "label": "In the Download Crosstab pop-up that has appeared, choose Transactions, and then CSV for the file type. Then click download.",
+      "position": {
+        "x": 898.5001220703125,
+        "y": 531
+      },
+      "next": "s7"
+    },
+    {
+      "id": "s7",
+      "type": "wait",
+      "label": "The file usually arrives in your downloads folder unless you have specified a different path.",
+      "position": {
+        "x": 895.5001220703125,
+        "y": 656.0000305175781
+      }
+    }
+  ],
+  "endPosition": {
+    "x": 894.0001220703125,
+    "y": 930.0003356933594
+  }
+}

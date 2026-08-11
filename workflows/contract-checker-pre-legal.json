@@ -1,0 +1,430 @@
+{
+  "id": "contract-checker-pre-legal",
+  "title": "Contract Checking",
+  "steps": [
+    {
+      "id": "s1",
+      "type": "action",
+      "label": "Receive a quote/contract",
+      "position": {
+        "x": 156.98727416992188,
+        "y": 73.00004959106445
+      },
+      "next": "s2"
+    },
+    {
+      "id": "s2",
+      "type": "action",
+      "label": "Before going through the Conga Step, open up an instance of \"Contract Checker\". (C:\\Users\\philip.seabrook\\ContractChecker\\checker.html)",
+      "position": {
+        "x": 503.82177734375,
+        "y": 95.93701934814453
+      },
+      "next": "s3"
+    },
+    {
+      "id": "s3",
+      "type": "action",
+      "label": "Check the left hand side of the html window, and see if all the terms that you want to be aware of are listed.",
+      "position": {
+        "x": 901.9407653808594,
+        "y": 95.93583679199219
+      },
+      "next": "s4"
+    },
+    {
+      "id": "s4",
+      "type": "action",
+      "label": "Once you are happy with the terms, copy prompt to clipboard, and open an instance of Claude.",
+      "position": {
+        "x": 1281.5075378417969,
+        "y": 96.94001007080078
+      },
+      "next": "s5"
+    },
+    {
+      "id": "s5",
+      "type": "action",
+      "label": "Post your copied prompt into the version of Claude (Ctrl+v) you are comfortable with. Then drag and drop the contract you want checked into Claude. Press the return key to set Claude working.",
+      "position": {
+        "x": 1697.5082397460938,
+        "y": 96.6549072265625
+      },
+      "next": "s6"
+    },
+    {
+      "id": "s6",
+      "type": "wait",
+      "label": "Wait for Claude to process the request.",
+      "position": {
+        "x": 161.0643768310547,
+        "y": 239.22726440429688
+      },
+      "next": "s7"
+    },
+    {
+      "id": "s7",
+      "type": "action",
+      "label": "Once Claude has finished. Copy the entire json file over to the Contract Checker in the \"Paste Claudes Reply\" box, and click the \"Render Report\" box.",
+      "position": {
+        "x": 485.2083740234375,
+        "y": 381.6569519042969
+      },
+      "next": "s8"
+    },
+    {
+      "id": "s8",
+      "type": "wait",
+      "label": "You now see the report. You do not need to save it, but it can be helpful.",
+      "position": {
+        "x": 831.2472381591797,
+        "y": 249.00225830078125
+      },
+      "next": "s20"
+    },
+    {
+      "id": "s9",
+      "type": "action",
+      "label": "Open up the COI Filer and drag-drop the COI that came with the Contract into the filer. ",
+      "position": {
+        "x": 1308.756103515625,
+        "y": 296.99853515625
+      },
+      "next": "s10"
+    },
+    {
+      "id": "s10",
+      "type": "wait",
+      "label": "You'll see the output. It will tell you if it had an issue with reading the file, in which case you want to check manually. Red text is bad, yellow is cautionary, black is good. If the COI passes, then no further steps are required with the COI.",
+      "position": {
+        "x": 1408.7508544921875,
+        "y": 530.0017395019531
+      },
+      "next": "s23"
+    },
+    {
+      "id": "s14",
+      "type": "decision",
+      "label": "Is there a listed address?",
+      "position": {
+        "x": 1873.763916015625,
+        "y": 443.9964599609375
+      },
+      "options": [
+        {
+          "label": "Yes",
+          "goto": "s15"
+        },
+        {
+          "label": "No",
+          "goto": "s31"
+        }
+      ]
+    },
+    {
+      "id": "s15",
+      "type": "decision",
+      "label": "Is there a Social Security Number or Employer Identification number listed? (Part 1)",
+      "position": {
+        "x": 1866.7603759765625,
+        "y": 620.99755859375
+      },
+      "options": [
+        {
+          "label": "Yes",
+          "goto": "s16"
+        },
+        {
+          "label": "No.",
+          "goto": "s31"
+        }
+      ]
+    },
+    {
+      "id": "s16",
+      "type": "decision",
+      "label": "Is the form signed?",
+      "position": {
+        "x": 1871.7587890625,
+        "y": 797.999267578125
+      },
+      "options": [
+        {
+          "label": "Yes",
+          "goto": "s17"
+        },
+        {
+          "label": "No",
+          "goto": "s31"
+        }
+      ]
+    },
+    {
+      "id": "s17",
+      "type": "decision",
+      "label": "Was the signature within the last 4 years?",
+      "position": {
+        "x": 1864.7693481445312,
+        "y": 910.001708984375
+      },
+      "options": [
+        {
+          "label": "Yes",
+          "goto": "s22"
+        },
+        {
+          "label": "No",
+          "goto": "s31"
+        }
+      ]
+    },
+    {
+      "id": "s19",
+      "type": "action",
+      "label": "Add to the email that there were some irregularities with the W9 that you received, and ask if they can provide you with an up to date version.",
+      "position": {
+        "x": 1661.7566528320312,
+        "y": 1310.0023193359375
+      },
+      "next": "s37"
+    },
+    {
+      "id": "s20",
+      "type": "decision",
+      "label": "Has the report flagged against Net 30, Auto-renewal, Contract length, Name/promotional Rights or Early termination?",
+      "position": {
+        "x": 826.3693237304688,
+        "y": 526.9986572265625
+      },
+      "options": [
+        {
+          "label": "Yes",
+          "goto": "s24"
+        },
+        {
+          "label": "No",
+          "goto": "s9"
+        }
+      ]
+    },
+    {
+      "id": "s21",
+      "type": "decision",
+      "label": "Sadly, the W-9 checker is not Mac compatible (yet). Open the W-9 and check the following: Does the Name of Entity/Individual (1) and/or Business name (2) match the vendor name?",
+      "position": {
+        "x": 1874.861328125,
+        "y": 299.99212646484375
+      },
+      "options": [
+        {
+          "label": "Yes",
+          "goto": "s14"
+        },
+        {
+          "label": "No",
+          "goto": "s31"
+        }
+      ]
+    },
+    {
+      "id": "s22",
+      "type": "action",
+      "label": "The W-9 is good, no further action needed for the W9.",
+      "position": {
+        "x": 1940.5762939453125,
+        "y": 1047.9986572265625
+      },
+      "next": "s35"
+    },
+    {
+      "id": "s23",
+      "type": "decision",
+      "label": "Does the COI look good to go?",
+      "position": {
+        "x": 1408.5328369140625,
+        "y": 674.9954223632812
+      },
+      "options": [
+        {
+          "label": "Yes",
+          "goto": "s27"
+        },
+        {
+          "label": "No",
+          "goto": "s25"
+        }
+      ]
+    },
+    {
+      "id": "s24",
+      "type": "action",
+      "label": "Start drafting an email to the vendor. Their email address can be found in the relevant submission in Asana. Title the email at the end, I'll say when.",
+      "position": {
+        "x": 303.5271301269531,
+        "y": 669.9954833984375
+      },
+      "next": "s26"
+    },
+    {
+      "id": "s25",
+      "type": "decision",
+      "label": "Have you already started drafting an email to the vendor?",
+      "position": {
+        "x": 940.5303955078125,
+        "y": 778.9959716796875
+      },
+      "options": [
+        {
+          "label": "Yes",
+          "goto": "s28"
+        },
+        {
+          "label": "No",
+          "goto": "s30"
+        }
+      ]
+    },
+    {
+      "id": "s26",
+      "type": "action",
+      "label": "Introduce yourself, let them know who gave you their contact, what work this pertains to, and your relevance to this process. Explain that you know that your legal team will push back on the flagged items, and ask if they would be happy and able to make changes to the proposed contract to match our organisational preferences. DO NOT SEND THE EMAIL YET.",
+      "position": {
+        "x": 324.5273742675781,
+        "y": 823.99609375
+      },
+      "next": "s9"
+    },
+    {
+      "id": "s27",
+      "type": "action",
+      "label": "Good, No further action on the COI required.",
+      "position": {
+        "x": 1397.5325927734375,
+        "y": 778.9960327148438
+      },
+      "next": "s21"
+    },
+    {
+      "id": "s28",
+      "type": "action",
+      "label": "Add to the email that you also need a new COI, and explain your reasoning (usually it is out of date). Still do not send the email yet.",
+      "position": {
+        "x": 906.5302734375,
+        "y": 1092.9974365234375
+      },
+      "next": "s21"
+    },
+    {
+      "id": "s29",
+      "type": "action",
+      "label": "Introduce yourself, let them know who gave you their contact, what work this pertains to, and your relevance to this process. Explain that you noted that the COI was out of date, and ask if they would send you an up to date version. DO NOT SEND THE EMAIL YET.",
+      "position": {
+        "x": 414.52783203125,
+        "y": 1156.9978637695312
+      },
+      "next": "s21"
+    },
+    {
+      "id": "s30",
+      "type": "action",
+      "label": "Start drafting an email to the vendor. Their email address can be found in the relevant submission in Asana. Title the email at the end, I'll say when.",
+      "position": {
+        "x": 416.5277099609375,
+        "y": 1025.9970703125
+      },
+      "next": "s29"
+    },
+    {
+      "id": "s31",
+      "type": "decision",
+      "label": "Have you already started drafting an email to the vendor?",
+      "position": {
+        "x": 1524.5333251953125,
+        "y": 907.9966430664062
+      },
+      "options": [
+        {
+          "label": "Yes",
+          "goto": "s19"
+        },
+        {
+          "label": "No",
+          "goto": "s32"
+        }
+      ]
+    },
+    {
+      "id": "s32",
+      "type": "action",
+      "label": "Start drafting an email to the vendor. Their email address can be found in the relevant submission in Asana. Title the email \"W9 request\".",
+      "position": {
+        "x": 1307.531982421875,
+        "y": 1023.9967041015625
+      },
+      "next": "s33"
+    },
+    {
+      "id": "s33",
+      "type": "action",
+      "label": "Introduce yourself, let them know who gave you their contact, what work this pertains to and your relevance to this process. Explain that you noted that there were some irregularities with the W9 you recevied, and ask if they would send you an up to date version. ",
+      "position": {
+        "x": 1343.5322265625,
+        "y": 1166.9970703125
+      },
+      "next": "s34"
+    },
+    {
+      "id": "s34",
+      "type": "action",
+      "label": "Send your email, make a note of your actions in the Asana Comments Section.",
+      "position": {
+        "x": 1185.8839111328125,
+        "y": 1534.0062866210938
+      },
+      "next": "end"
+    },
+    {
+      "id": "s35",
+      "type": "decision",
+      "label": "Have you started an email pertaining to the Contract or COI?",
+      "position": {
+        "x": 1911.0660400390625,
+        "y": 1452.4895629882812
+      },
+      "options": [
+        {
+          "label": "Yes",
+          "goto": "s37"
+        },
+        {
+          "label": "No",
+          "goto": "s36"
+        }
+      ]
+    },
+    {
+      "id": "s36",
+      "type": "action",
+      "label": "Then all parts look good to go. No emails need to go out, just go through the normal submission process in Conga. Note when you sent in the submission in the Asana comments section.",
+      "position": {
+        "x": 1888.06591796875,
+        "y": 1662.491455078125
+      },
+      "next": "end"
+    },
+    {
+      "id": "s37",
+      "type": "action",
+      "label": "Title your email appropriately. Remember that you are typically a stranger to them, asking for personal details, Use diplomacy.",
+      "position": {
+        "x": 1033.05810546875,
+        "y": 1359.488525390625
+      },
+      "next": "s34"
+    }
+  ],
+  "endPosition": {
+    "x": 1193.71826171875,
+    "y": 1734.9838562011719
+  }
+}

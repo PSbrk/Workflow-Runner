@@ -1,0 +1,696 @@
+{
+  "id": "new-asana-task",
+  "title": "New Task in Asana",
+  "steps": [
+    {
+      "id": "s1",
+      "type": "decision",
+      "label": "Work needed/Contractor Onboarding requested",
+      "position": {
+        "x": 1575.5697631835938,
+        "y": 54.99895095825195
+      },
+      "options": [
+        {
+          "label": "Begin.",
+          "goto": "s2"
+        },
+        {
+          "label": "I didn't receice anything.",
+          "goto": "s50"
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "type": "decision",
+      "label": "Does this work need to happen in the next 24 hours?",
+      "position": {
+        "x": 1577.5143127441406,
+        "y": 199.8062286376953
+      },
+      "options": [
+        {
+          "label": "Yes.",
+          "goto": "s3"
+        },
+        {
+          "label": "No.",
+          "goto": "s13"
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "type": "decision",
+      "label": "What is the estimated cost?",
+      "position": {
+        "x": 841.9612121582031,
+        "y": 357.58544921875
+      },
+      "options": [
+        {
+          "label": "Less than $5,000",
+          "goto": "s55"
+        },
+        {
+          "label": "$5000 - $24,999",
+          "goto": "s41"
+        },
+        {
+          "label": ">$25,000",
+          "goto": "s42"
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "type": "action",
+      "label": "Make a PowerForm and get in touch with the PM. Request the dollar amount, the contractor's name, the amount per hour/per project and the start and end dates. Inform them that you will need the contractors W-9 and COI within 48 hours.",
+      "position": {
+        "x": 329.9853515625,
+        "y": 524.2538757324219
+      },
+      "next": "s5"
+    },
+    {
+      "id": "s5",
+      "type": "action",
+      "label": "Submit the PowerForm.",
+      "position": {
+        "x": 325.5386962890625,
+        "y": 628.6994018554688
+      },
+      "next": "s6"
+    },
+    {
+      "id": "s6",
+      "type": "wait",
+      "label": "This goes to both the Coordinator and the Location Support inbox.",
+      "position": {
+        "x": 321.0942077636719,
+        "y": 730.9226989746094
+      },
+      "next": "s7"
+    },
+    {
+      "id": "s7",
+      "type": "action",
+      "label": "Get in touch with your leader now! Explain situation. Stay on the phone through the next stage.",
+      "position": {
+        "x": 318.87200927734375,
+        "y": 853.1462097167969
+      },
+      "next": "s8"
+    },
+    {
+      "id": "s8",
+      "type": "action",
+      "label": "Coordinator (you) process the PowerForm via Docusign.",
+      "position": {
+        "x": 314.427490234375,
+        "y": 950.925048828125
+      },
+      "next": "s9"
+    },
+    {
+      "id": "s9",
+      "type": "wait",
+      "label": "PM should get you the W-9 and COI.",
+      "position": {
+        "x": 312.2052001953125,
+        "y": 1050.9261169433594
+      },
+      "next": "s35"
+    },
+    {
+      "id": "s13",
+      "type": "decision",
+      "label": "What type of request is this?",
+      "position": {
+        "x": 2152.2164306640625,
+        "y": 306.47381591796875
+      },
+      "options": [
+        {
+          "label": "A proposal with terms (\"Contract\").",
+          "goto": "s14"
+        },
+        {
+          "label": "A Proposal without terms/quote, contract ect.",
+          "goto": "s15"
+        }
+      ]
+    },
+    {
+      "id": "s14",
+      "type": "wait",
+      "label": "PM collects W-9, COI and Proposal/terms/contract agreement.",
+      "position": {
+        "x": 1782.3307495117188,
+        "y": 522.0316467285156
+      },
+      "next": "s16"
+    },
+    {
+      "id": "s15",
+      "type": "wait",
+      "label": "PM collects W-9, COI and predicted $ amount for the duration of the contract.",
+      "position": {
+        "x": 2475.6600341796875,
+        "y": 522.0316467285156
+      },
+      "next": "s21"
+    },
+    {
+      "id": "s16",
+      "type": "decision",
+      "label": "Are the submitted files all present?",
+      "position": {
+        "x": 1782.5071411132812,
+        "y": 668.6997985839844
+      },
+      "options": [
+        {
+          "label": "Yes.",
+          "goto": "s17"
+        },
+        {
+          "label": "No.",
+          "goto": "s18"
+        }
+      ]
+    },
+    {
+      "id": "s17",
+      "type": "decision",
+      "label": "Are all the files in pdf. ,.doc or .docx (Microsoft word) format?",
+      "position": {
+        "x": 1778.0625,
+        "y": 770.9232177734375
+      },
+      "options": [
+        {
+          "label": "Yes.",
+          "goto": "s19"
+        },
+        {
+          "label": "No.",
+          "goto": "s20"
+        }
+      ]
+    },
+    {
+      "id": "s18",
+      "type": "action",
+      "label": "Request PM to supply the required documentation (W-9, COI and terms/contract/proposal/quote).",
+      "position": {
+        "x": 1466.9481201171875,
+        "y": 606.4769592285156
+      },
+      "next": "s14"
+    },
+    {
+      "id": "s19",
+      "type": "action",
+      "label": "Input relevant data into Conga and submit.",
+      "position": {
+        "x": 1782.5070190429688,
+        "y": 875.3686828613281
+      },
+      "next": "s26"
+    },
+    {
+      "id": "s20",
+      "type": "action",
+      "label": "Convert files into pdf. or .doc or .docx format.",
+      "position": {
+        "x": 1418.05859375,
+        "y": 766.4786376953125
+      },
+      "next": "s17"
+    },
+    {
+      "id": "s21",
+      "type": "decision",
+      "label": "Are the submitted files all present?",
+      "position": {
+        "x": 2469.1808471679688,
+        "y": 648.6996459960938
+      },
+      "options": [
+        {
+          "label": "Yes.",
+          "goto": "s22"
+        },
+        {
+          "label": "No.",
+          "goto": "s23"
+        }
+      ]
+    },
+    {
+      "id": "s22",
+      "type": "decision",
+      "label": "Are all the files in pdf. or .docs (Microsoft word) format?",
+      "position": {
+        "x": 2462.5142822265625,
+        "y": 762.0341491699219
+      },
+      "options": [
+        {
+          "label": "No.",
+          "goto": "s24"
+        },
+        {
+          "label": "Yes.",
+          "goto": "s25"
+        }
+      ]
+    },
+    {
+      "id": "s23",
+      "type": "action",
+      "label": "Request PM to supply the required documentation (W-9, COI and terms/contract/proposal/quote).",
+      "position": {
+        "x": 2142.510986328125,
+        "y": 599.8102111816406
+      },
+      "next": "s15"
+    },
+    {
+      "id": "s24",
+      "type": "action",
+      "label": "Convert files into pdf. or .doc or .docx format.",
+      "position": {
+        "x": 2126.9552001953125,
+        "y": 764.2564086914062
+      },
+      "next": "s22"
+    },
+    {
+      "id": "s25",
+      "type": "action",
+      "label": "Input relevant data into Conga and submit.",
+      "position": {
+        "x": 2464.7362670898438,
+        "y": 866.4796752929688
+      },
+      "next": "s26"
+    },
+    {
+      "id": "s26",
+      "type": "action",
+      "label": "Wait for Legal to send you an email.",
+      "position": {
+        "x": 2124.7327270507812,
+        "y": 877.5909729003906
+      },
+      "next": "s28"
+    },
+    {
+      "id": "s27",
+      "type": "decision",
+      "label": "Communicate again with Legal to ensure that this has not been lost/buried. They have a lot on!",
+      "position": {
+        "x": 1782.0634765625,
+        "y": 985.8148498535156
+      },
+      "nextLabel": "It's been at least 5 buisness days, and still no news.",
+      "options": [
+        {
+          "label": "It's been at least 5 buisness days, and still no news.",
+          "goto": "s33"
+        },
+        {
+          "label": "It has been less than 5 buisness days.",
+          "goto": "s26"
+        }
+      ]
+    },
+    {
+      "id": "s28",
+      "type": "decision",
+      "label": "Did you receive a response?",
+      "position": {
+        "x": 2125.6704711914062,
+        "y": 957.0025634765625
+      },
+      "options": [
+        {
+          "label": "No, and I've waited a few days.",
+          "goto": "s27"
+        },
+        {
+          "label": "Yes, they sent me an ICA for the vendor to review.",
+          "goto": "s29"
+        },
+        {
+          "label": "Yes, they sent me an email that says \"Your Document has been completed\" in the body of the text, with a link to a docusign document.",
+          "goto": "s30"
+        }
+      ]
+    },
+    {
+      "id": "s29",
+      "type": "action",
+      "label": "Using the email address and information provided in the form (from Asana), email the vendor asking them to review the ICA, and to let you know if it is agreeable. If it is, then the coordinator will let legal know, and the signable document will follow.  ",
+      "position": {
+        "x": 2123.6704711914062,
+        "y": 1207.0042114257812
+      },
+      "next": "s43"
+    },
+    {
+      "id": "s30",
+      "type": "action",
+      "label": "The contract is now active. Update Asana to reflect this.",
+      "position": {
+        "x": 2481.6727905273438,
+        "y": 1067.00341796875
+      },
+      "next": "s31"
+    },
+    {
+      "id": "s31",
+      "type": "wait",
+      "label": "[Placeholder] for assessment of contract expense vs value process.",
+      "position": {
+        "x": 2493.6677856445312,
+        "y": 1823.0079345703125
+      },
+      "next": "s56"
+    },
+    {
+      "id": "s33",
+      "type": "action",
+      "label": "Get in touch with your leader for advice.",
+      "position": {
+        "x": 1783.66845703125,
+        "y": 1097.0032958984375
+      },
+      "next": "s38"
+    },
+    {
+      "id": "s34",
+      "type": "action",
+      "label": "Submit these documents (W-9 and COI) to legal.",
+      "position": {
+        "x": 307.6590576171875,
+        "y": 1251.0045166015625
+      },
+      "next": "s30"
+    },
+    {
+      "id": "s35",
+      "type": "decision",
+      "label": "Did you receive the COI and W-9?",
+      "position": {
+        "x": 309.65911865234375,
+        "y": 1141.003662109375
+      },
+      "options": [
+        {
+          "label": "Yes.",
+          "goto": "s34"
+        },
+        {
+          "label": "Not yet, and the 48 hour window is running out.",
+          "goto": "s36"
+        }
+      ]
+    },
+    {
+      "id": "s36",
+      "type": "decision",
+      "label": "Contact the PM responsible for collecting these documents. You need them asap.",
+      "position": {
+        "x": 683.6614379882812,
+        "y": 1147.0037231445312
+      },
+      "options": [
+        {
+          "label": "Ok, I will do that step now.",
+          "goto": "s35"
+        },
+        {
+          "label": "I have done this already.",
+          "goto": "s37"
+        }
+      ]
+    },
+    {
+      "id": "s37",
+      "type": "action",
+      "label": "Contact your leader. Explain the situation and ask for advice.",
+      "position": {
+        "x": 677.6613159179688,
+        "y": 1421.0055541992188
+      },
+      "next": "s38"
+    },
+    {
+      "id": "s38",
+      "type": "decision",
+      "label": "Did you manage to reach your leader?",
+      "position": {
+        "x": 1107.6640625,
+        "y": 1347.005126953125
+      },
+      "options": [
+        {
+          "label": "Yes.",
+          "goto": "s40"
+        },
+        {
+          "label": "No.",
+          "goto": "s39"
+        }
+      ]
+    },
+    {
+      "id": "s39",
+      "type": "decision",
+      "label": "Escalate until you reach your CGL if you need to. That said, do not skip trying to reach the next up the chain each time first.",
+      "position": {
+        "x": 1283.6650390625,
+        "y": 1449.0056762695312
+      },
+      "options": [
+        {
+          "label": "Ok, I am in communication with them.",
+          "goto": "s40"
+        },
+        {
+          "label": "I cannot get in touch with them.",
+          "goto": "s51"
+        }
+      ]
+    },
+    {
+      "id": "s40",
+      "type": "action",
+      "label": "Do as your leader has directed. This may lead you out of the workflow in this app. Don't panic, you can find the relevant tile again by using some imagination and/or direction.",
+      "position": {
+        "x": 869.6626586914062,
+        "y": 1543.0062866210938
+      },
+      "next": "end"
+    },
+    {
+      "id": "s41",
+      "type": "wait",
+      "label": "This is handled by the PM and leader echelon 1. In the Location Support Craft app, there is a document titled \"CapEx Approval Process\". At present, the coordinator role only does step 7, the Conga submission step.",
+      "position": {
+        "x": 843.4122924804688,
+        "y": 622.7504272460938
+      },
+      "next": "s52"
+    },
+    {
+      "id": "s42",
+      "type": "wait",
+      "label": "You should not receive this. Tell the PM that they need to call their leader now.",
+      "position": {
+        "x": 1133.330810546875,
+        "y": 705.9172973632812
+      },
+      "next": "s54"
+    },
+    {
+      "id": "s43",
+      "type": "decision",
+      "label": "Did you receive a response?",
+      "position": {
+        "x": 2121.6692504882812,
+        "y": 1339.0049438476562
+      },
+      "options": [
+        {
+          "label": "Yes. They agree to the terms.",
+          "goto": "s44"
+        },
+        {
+          "label": "They have not declined, but have questions.",
+          "goto": "s45"
+        },
+        {
+          "label": "The vendor/contractor refuses the ICA.",
+          "goto": "s46"
+        }
+      ]
+    },
+    {
+      "id": "s44",
+      "type": "action",
+      "label": "Inform Legal.",
+      "position": {
+        "x": 2235.9251708984375,
+        "y": 1467.005859375
+      },
+      "next": "s47"
+    },
+    {
+      "id": "s45",
+      "type": "action",
+      "label": "Respond to any questions they have to the best of your ability. Contact legal for clarification if needed.",
+      "position": {
+        "x": 1915.9230346679688,
+        "y": 1479.005859375
+      },
+      "next": "s43"
+    },
+    {
+      "id": "s46",
+      "type": "action",
+      "label": "Inform Legal, then inform the PM that they need to find another vendor for the job. Provide the reason.",
+      "position": {
+        "x": 1725.9219970703125,
+        "y": 1339.0049438476562
+      },
+      "next": "end"
+    },
+    {
+      "id": "s47",
+      "type": "wait",
+      "label": "Legal will now send out a DocuSign for the CGL (or higher) and the vendor to sign.",
+      "position": {
+        "x": 2239.92529296875,
+        "y": 1581.0065307617188
+      },
+      "next": "s48"
+    },
+    {
+      "id": "s48",
+      "type": "decision",
+      "label": "Have you received an email stating that \"Your document has been completed\" for this contract within 5 working days?",
+      "position": {
+        "x": 2057.9238891601562,
+        "y": 1689.0071411132812
+      },
+      "options": [
+        {
+          "label": "Yes.",
+          "goto": "s49"
+        },
+        {
+          "label": "No.",
+          "goto": "s37"
+        }
+      ]
+    },
+    {
+      "id": "s49",
+      "type": "action",
+      "label": "Update Asana. Thanks for playing; you are good to go!",
+      "position": {
+        "x": 1963.92333984375,
+        "y": 1843.0081176757812
+      },
+      "next": "end"
+    },
+    {
+      "id": "s50",
+      "type": "action",
+      "label": "If you didn't receive anything, then this is not the right workflow!",
+      "position": {
+        "x": 1253.831298828125,
+        "y": 60.002418518066406
+      },
+      "next": "end"
+    },
+    {
+      "id": "s51",
+      "type": "action",
+      "label": "Get praying and keep trying.",
+      "position": {
+        "x": 1254.833251953125,
+        "y": 1601.0059814453125
+      },
+      "next": "s39"
+    },
+    {
+      "id": "s52",
+      "type": "action",
+      "label": "Input information into Conga as directed.",
+      "position": {
+        "x": 844.1657104492188,
+        "y": 778.8017578125
+      },
+      "next": "s53"
+    },
+    {
+      "id": "s53",
+      "type": "decision",
+      "label": "Wait for a response from Legal.",
+      "position": {
+        "x": 842.9156494140625,
+        "y": 867.5520629882812
+      },
+      "options": [
+        {
+          "label": "No, and it has been 48 hours since the last step, or what they responded with is asking for more information.",
+          "goto": "s54"
+        },
+        {
+          "label": "Yes, they sent me an email that says \"Your Document has been completed\" in the body of the text.",
+          "goto": "s30"
+        }
+      ]
+    },
+    {
+      "id": "s54",
+      "type": "action",
+      "label": "Talk to your leader and explain the process so far.",
+      "position": {
+        "x": 662.498291015625,
+        "y": 985.4692993164062
+      },
+      "next": "s40"
+    },
+    {
+      "id": "s55",
+      "type": "wait",
+      "label": "To open the PowerForm, go to https://www.docusign.com/send/home, and use the Location Support email and password as the login criteria. Then, click on Templates in the top bar, shared with me in the left side-bar, and use the form named, \"Location Support ICA\". This is the PowerForm.",
+      "position": {
+        "x": 343.8246154785156,
+        "y": 295.0032043457031
+      },
+      "next": "s4"
+    },
+    {
+      "id": "s56",
+      "type": "action",
+      "label": "This part is not yet complete.",
+      "position": {
+        "x": 2497.9222412109375,
+        "y": 1930.0560913085938
+      },
+      "next": "end"
+    }
+  ],
+  "endPosition": {
+    "x": 1555.56201171875,
+    "y": 2090.0137939453125
+  }
+}

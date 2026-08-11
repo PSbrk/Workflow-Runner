@@ -1,0 +1,139 @@
+{
+  "id": "FMX-before-OctandCenB",
+  "title": "FMX Ticket for CEN B before October 20206",
+  "steps": [
+    {
+      "id": "s1",
+      "type": "action",
+      "label": "FMX - So you've received a ticket for something in CEN B.",
+      "position": {
+        "x": 718,
+        "y": 78
+      },
+      "next": "s2"
+    },
+    {
+      "id": "s2",
+      "type": "decision",
+      "label": "Is it building related or a room set-up?",
+      "position": {
+        "x": 716.000244140625,
+        "y": 168.99977111816406
+      },
+      "options": [
+        {
+          "label": "Building related issue.",
+          "goto": "s3"
+        },
+        {
+          "label": "A room set-up request.",
+          "goto": "s12"
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "type": "action",
+      "label": "Open up Base camp, this is the RED team's equivalent of Asana.",
+      "position": {
+        "x": 393.9999084472656,
+        "y": 250.99981689453125
+      },
+      "next": "s4"
+    },
+    {
+      "id": "s4",
+      "type": "action",
+      "label": "Choose CEN B Warranty. It is likely the only board you have been invited to.",
+      "position": {
+        "x": 395.99993896484375,
+        "y": 338.9999084472656
+      },
+      "next": "s5"
+    },
+    {
+      "id": "s5",
+      "type": "action",
+      "label": "Select Add ToDo.",
+      "position": {
+        "x": 398.9997863769531,
+        "y": 419.9999694824219
+      },
+      "next": "s6"
+    },
+    {
+      "id": "s6",
+      "type": "action",
+      "label": "Give the description (brief), then assign the following persons: James Fishburn, Loni Bell, Brad Lasater and Sarah Rodrigues.",
+      "position": {
+        "x": 399.9999694824219,
+        "y": 506.00006103515625
+      },
+      "next": "s7"
+    },
+    {
+      "id": "s7",
+      "type": "action",
+      "label": "For Who to notify when done, put yourself, and unless it NEEDS to be done asap, set the date as a week out.",
+      "position": {
+        "x": 399.49993896484375,
+        "y": 602.0001525878906
+      },
+      "next": "s8"
+    },
+    {
+      "id": "s8",
+      "type": "action",
+      "label": "In the notes section, let them know who submitted the FMX ticket, and put the note from FMX into the section. Add any photos that came with the ticket. You can drag and drop.",
+      "position": {
+        "x": 395.999755859375,
+        "y": 711.000244140625
+      },
+      "next": "s9"
+    },
+    {
+      "id": "s9",
+      "type": "action",
+      "label": "Select the \"Add to To Do list.\"",
+      "position": {
+        "x": 394.99993896484375,
+        "y": 809
+      },
+      "next": "s10"
+    },
+    {
+      "id": "s10",
+      "type": "action",
+      "label": "Come out of Basecamp and back to FMX.",
+      "position": {
+        "x": 393.99993896484375,
+        "y": 883.0001220703125
+      },
+      "next": "s11"
+    },
+    {
+      "id": "s11",
+      "type": "action",
+      "label": "Resolve the ticket, and in the message section, thank the person who put in the ticket. Then explain that this is covered by the warranty on CEN B, and so you have passed it onto the Retail and Development team, who will handle it from here.",
+      "position": {
+        "x": 392.0000915527344,
+        "y": 991.0031127929688
+      },
+      "next": "end"
+    },
+    {
+      "id": "s12",
+      "type": "action",
+      "label": "Go through the room set-ups workflow, this is the wrong one!",
+      "position": {
+        "x": 898.00048828125,
+        "y": 254.49932861328125
+      },
+      "next": "end"
+    }
+  ],
+  "endPosition": {
+    "x": 728.0006103515625,
+    "y": 1175.0024719238281
+  }
+}
